@@ -1,4 +1,6 @@
-<img src="custom_components/recorder_throttle/brand/icon.png" align="right" width="96" alt="Recorder Throttle icon">
+<p align="center">
+  <img src="custom_components/recorder_throttle/brand/icon.png" width="128" alt="Recorder Throttle icon">
+</p>
 
 # Recorder Throttle
 
@@ -12,12 +14,13 @@
 
 A Home Assistant custom integration that **throttles the recorder's database writes per entity** — e.g. "record this sensor at most once per minute". No second database, no second recorder; the live state, automations and UI are unaffected — only persistence is throttled.
 
-Home Assistant only offers all-or-nothing per entity (`include`/`exclude`). This fills the gap: keep a **coarse history instead of none**, at a fraction of the write volume (DB size, disk wear, query load).
+Home Assistant only offers all-or-nothing per entity (`include`/`exclude`). This fills the gap: keep a **coarse history instead of none**, at a fraction of the write volume. Fewer `states` rows means a **smaller database on disk**, less SSD wear, lower query load, and **faster nightly purges** (the recorder has far fewer rows to delete).
 
 ![Recorder Throttle — management card](docs/card.png)
 
 ## Features
 - **Per-entity time throttle** via labels: `rec-1min` · `rec-5min` · `rec-10min` · `rec-off` (never).
+- **Smaller, faster database**: fewer `states` rows → less disk usage and quicker recorder purges.
 - **Management card** with tabs: **Unthrottled** (frequent writers, live writes/min) · **Throttled** · **Accepted**.
 - **Repair report**: surfaces new, unthrottled heavy writers on the Repairs page (threshold configurable).
 - **Statistics preserved**: long-term statistics (for `state_class` sensors) survive throttling **and** "off" (the statistics engine falls back to the live state) — the card shows `stats kept` / `no backup` per row.
