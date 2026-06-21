@@ -1,4 +1,14 @@
+<img src="custom_components/recorder_throttle/brand/icon.png" align="right" width="96" alt="Recorder Throttle icon">
+
 # Recorder Throttle
+
+[![HACS Custom][hacs-badge]][hacs-url]
+[![GitHub Release][release-badge]][release-url]
+[![Validate][validate-badge]][validate-url]
+[![License: MIT][license-badge]][license-url]
+[![Home Assistant][hass-badge]][hass-url]
+
+[![Open your Home Assistant instance and add this repository to HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=pos-ei-don&repository=ha-recorder-throttle&category=integration)
 
 A Home Assistant custom integration that **throttles the recorder's database writes per entity** — e.g. "record this sensor at most once per minute". No second database, no second recorder; the live state, automations and UI are unaffected — only persistence is throttled.
 
@@ -21,7 +31,7 @@ A fail-safe instance hook on `Recorder._process_state_changed_event_into_session
 ## Installation
 
 ### HACS (custom repository)
-1. HACS → ⋮ → **Custom repositories** → add this repo, category **Integration**.
+1. Click the **"Add repository to HACS"** button above — or in HACS → ⋮ → **Custom repositories** add this repo, category **Integration**.
 2. Install **Recorder Throttle**, then **restart** Home Assistant.
 3. **Settings → Devices & Services → Add Integration → "Recorder Throttle"** (single instance). It creates the labels `rec-off/1min/5min/10min/accepted` and registers the services.
 
@@ -66,5 +76,20 @@ Copy `custom_components/recorder_throttle/` into your `<config>/custom_component
 - Don't throttle **energy / `total_increasing`** or statistics-critical measurements too hard. Entities **without** statistics (text/binary) lose everything at "off" — the card warns with `no backup`.
 - Throttling only coarsens the *intra-5-min* min/max/mean of measurement sensors; the 5-min/hourly statistics keep being produced.
 
+## Contributing
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 MIT — see [LICENSE](LICENSE).
+
+<!-- Badges -->
+[hacs-badge]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge
+[hacs-url]: https://github.com/hacs/integration
+[release-badge]: https://img.shields.io/github/v/release/pos-ei-don/ha-recorder-throttle?style=for-the-badge
+[release-url]: https://github.com/pos-ei-don/ha-recorder-throttle/releases
+[validate-badge]: https://img.shields.io/github/actions/workflow/status/pos-ei-don/ha-recorder-throttle/validate.yml?branch=master&style=for-the-badge&label=validate
+[validate-url]: https://github.com/pos-ei-don/ha-recorder-throttle/actions/workflows/validate.yml
+[license-badge]: https://img.shields.io/github/license/pos-ei-don/ha-recorder-throttle?style=for-the-badge
+[license-url]: https://github.com/pos-ei-don/ha-recorder-throttle/blob/master/LICENSE
+[hass-badge]: https://img.shields.io/badge/Home%20Assistant-Integration-41BDF5.svg?style=for-the-badge&logo=home-assistant&logoColor=white
+[hass-url]: https://www.home-assistant.io/
