@@ -17,5 +17,3 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # Not (yet) listed in home-assistant/brands; skip the brand-asset check.
-          ignore: brands
