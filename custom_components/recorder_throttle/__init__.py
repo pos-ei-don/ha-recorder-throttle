@@ -1,11 +1,11 @@
-"""recorder_throttle — per-Entity-Zeit-Throttling der Recorder-DB-Writes (label-gesteuert).
+"""recorder_throttle — per-entity time throttling of recorder DB writes (label-driven).
 
-Hängt sich fail-safe in die laufende Recorder-Instanz: ersetzt das Instanz-Attribut
-`_process_state_changed_event_into_session` durch einen Wrapper, der State-Changes
-gedrosselter Entities verwirft (kein DB-Row). Live-State/Automationen/UI bleiben unberührt.
+Hooks fail-safe into the running recorder instance: replaces the instance attribute
+`_process_state_changed_event_into_session` with a wrapper that drops state changes
+of throttled entities (no DB row). Live state / automations / UI stay untouched.
 
-Konfiguration über HA-Labels (rec-off/rec-1min/rec-5min/rec-10min) + Einstellungsdialog
-(config_flow/options: Scan-Schwelle für neue Vielschreiber → Repair-Report). Docs: README.
+Configured via HA labels (rec-off/rec-1min/rec-5min/rec-10min) + a settings dialog
+(config_flow/options: scan threshold for new heavy writers -> repair report). Docs: README.
 """
 from __future__ import annotations
 
@@ -41,15 +41,15 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# YAML (Altbestand) wird in einen Config-Entry importiert; Schema nur fürs Import-Mapping.
+# YAML (legacy) is imported into a config entry; this schema is only for the import mapping.
 CONFIG_SCHEMA = vol.Schema(
     {
         DOMAIN: vol.Schema(
             {
                 vol.Optional(CONF_SCAN_ENABLED): cv.boolean,
-                vol.Optional(CONF_THRESHOLD): vol.Coerce(float),
-                vol.Optional(CONF_INTERVAL): vol.Coerce(int),
-                vol.Optional(CONF_WINDOW): vol.Coerce(float),
+                vol.Optional(CONF_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0)),
+                vol.Optional(CONF_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=1)),
+                vol.Optional(CONF_WINDOW): vol.All(vol.Coerce(float), vol.Range(min=0, min_included=False)),
             },
             extra=vol.ALLOW_EXTRA,
         )
@@ -62,7 +62,7 @@ SERVICE_SET_ENABLED = "set_enabled"
 SERVICE_REBUILD = "rebuild"
 SERVICE_TOP_WRITERS = "top_writers"
 SERVICE_SET_ACCEPTED = "set_accepted"
-ISSUE_PREFIX = "top_writer_"  # Altbestand (frühere per-Entity-Issues) — wird aufgeräumt
+ISSUE_PREFIX = "top_writer_"  # legacy (former per-entity issues) — cleaned up
 SUMMARY_ISSUE = "rt_top_writers_summary"
 
 _TOP_WRITERS_SQL = (
@@ -73,10 +73,10 @@ _TOP_WRITERS_SQL = (
 )
 
 
-# ---- Daten/Policy ---------------------------------------------------------
+# ---- Data / policy --------------------------------------------------------
 
 def _more_restrictive(a: int, b: int) -> int:
-    """0 (= nicht schreiben) am restriktivsten, sonst gewinnt das größere Intervall."""
+    """0 (= don't write) is the most restrictive; otherwise the larger interval wins."""
     if a == 0 or b == 0:
         return 0
     return max(a, b)
@@ -84,7 +84,7 @@ def _more_restrictive(a: int, b: int) -> int:
 
 @callback
 def _rebuild_policies(hass: HomeAssistant) -> None:
-    """entity_id -> Intervall aus den rec-* Labels neu berechnen (atomarer Ref-Swap)."""
+    """Recompute entity_id -> interval from the rec-* labels (atomic ref swap)."""
     data = hass.data[DOMAIN]
     try:
         ent_reg = er.async_get(hass)
@@ -106,14 +106,14 @@ def _rebuild_policies(hass: HomeAssistant) -> None:
                 if best is not None:
                     pol[entry.entity_id] = best
         data["policies"] = pol
-        _LOGGER.debug("recorder_throttle: %d Entities gedrosselt", len(pol))
+        _LOGGER.debug("recorder_throttle: %d entities throttled", len(pol))
     except Exception:  # noqa: BLE001 — fail-safe
-        _LOGGER.exception("recorder_throttle: Rebuild der Policies fehlgeschlagen")
+        _LOGGER.exception("recorder_throttle: rebuilding policies failed")
 
 
 @callback
 def _ensure_labels(hass: HomeAssistant) -> None:
-    """rec-* + rec-accepted Labels anlegen, falls sie fehlen."""
+    """Create the rec-* + rec-accepted labels if they are missing."""
     lab_reg = lr.async_get(hass)
     existing = {label.name for label in lab_reg.async_list_labels()}
     defs = dict(LABEL_META)
@@ -123,14 +123,14 @@ def _ensure_labels(hass: HomeAssistant) -> None:
             continue
         try:
             lab_reg.async_create(name=name, color=color, icon=icon)
-            _LOGGER.info("recorder_throttle: Label '%s' angelegt", name)
+            _LOGGER.info("recorder_throttle: created label '%s'", name)
         except Exception:  # noqa: BLE001
-            _LOGGER.warning("recorder_throttle: Label '%s' konnte nicht angelegt werden", name)
+            _LOGGER.warning("recorder_throttle: could not create label '%s'", name)
 
 
 @callback
 def _accepted_ids(hass: HomeAssistant) -> set[str]:
-    """entity_ids mit rec-accepted Label."""
+    """entity_ids carrying the rec-accepted label."""
     ent_reg = er.async_get(hass)
     lab_reg = lr.async_get(hass)
     acc_id = next((l.label_id for l in lab_reg.async_list_labels() if l.name == ACCEPTED_LABEL), None)
@@ -139,24 +139,24 @@ def _accepted_ids(hass: HomeAssistant) -> set[str]:
     return {e.entity_id for e in ent_reg.entities.values() if acc_id in e.labels}
 
 
-# ---- Recorder-Hook --------------------------------------------------------
+# ---- Recorder hook --------------------------------------------------------
 
 def _install_hook(hass: HomeAssistant) -> bool:
-    """Wrapper in die Recorder-Instanz einhängen. True bei Erfolg."""
+    """Install the wrapper into the recorder instance. True on success."""
     data = hass.data[DOMAIN]
     try:
         from homeassistant.components.recorder import get_instance
 
         rec = get_instance(hass)
         if rec is None:
-            _LOGGER.error("recorder_throttle: keine Recorder-Instanz gefunden")
+            _LOGGER.error("recorder_throttle: no recorder instance found")
             return False
         orig = rec._process_state_changed_event_into_session  # noqa: SLF001
         if getattr(orig, "_rt_wrapped", False):
             return True
         monotonic = time.monotonic
 
-        def wrapped(event):  # läuft synchron im Recorder-Thread
+        def wrapped(event):  # runs synchronously in the recorder thread
             if not data["enabled"]:
                 return orig(event)
             eid = event.data.get("entity_id")
@@ -181,10 +181,10 @@ def _install_hook(hass: HomeAssistant) -> bool:
         rec._process_state_changed_event_into_session = wrapped  # noqa: SLF001
         data["orig"] = orig
         data["rec"] = rec
-        _LOGGER.info("recorder_throttle: Hook installiert; %d Entities gedrosselt", len(data["policies"]))
+        _LOGGER.info("recorder_throttle: hook installed; %d entities throttled", len(data["policies"]))
         return True
     except Exception:  # noqa: BLE001 — fail-safe
-        _LOGGER.exception("recorder_throttle: Hook-Installation fehlgeschlagen")
+        _LOGGER.exception("recorder_throttle: hook installation failed")
         return False
 
 
@@ -195,11 +195,11 @@ def _restore_hook(hass: HomeAssistant) -> None:
         if data.get("rec") is not None and data.get("orig") is not None:
             data["rec"]._process_state_changed_event_into_session = data["orig"]  # noqa: SLF001
             data["orig"] = None
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception:  # noqa: BLE001 — fail-safe; a failed restore must not break unload
+        _LOGGER.exception("recorder_throttle: restoring the recorder hook failed")
 
 
-# ---- Label-Operationen ----------------------------------------------------
+# ---- Label operations -----------------------------------------------------
 
 async def _set_policy(hass: HomeAssistant, entity_ids: list[str], policy: str) -> None:
     ent_reg = er.async_get(hass)
@@ -211,7 +211,7 @@ async def _set_policy(hass: HomeAssistant, entity_ids: list[str], policy: str) -
     for eid in entity_ids:
         entry = ent_reg.async_get(eid)
         if entry is None:
-            _LOGGER.warning("recorder_throttle: %s nicht in der Entity-Registry", eid)
+            _LOGGER.warning("recorder_throttle: %s not in the entity registry", eid)
             continue
         new_labels = set(entry.labels) - rec_label_ids
         if target_id:
@@ -225,7 +225,7 @@ async def _set_accepted(hass: HomeAssistant, entity_ids: list[str], accepted: bo
     lab_reg = lr.async_get(hass)
     acc_id = next((l.label_id for l in lab_reg.async_list_labels() if l.name == ACCEPTED_LABEL), None)
     if acc_id is None:
-        _LOGGER.warning("recorder_throttle: Label '%s' fehlt", ACCEPTED_LABEL)
+        _LOGGER.warning("recorder_throttle: label '%s' missing", ACCEPTED_LABEL)
         return
     for eid in entity_ids:
         entry = ent_reg.async_get(eid)
@@ -239,12 +239,12 @@ async def _set_accepted(hass: HomeAssistant, entity_ids: list[str], accepted: bo
             ir.async_delete_issue(hass, DOMAIN, ISSUE_PREFIX + eid)
 
 
-# ---- Top-Writers + Scan ---------------------------------------------------
+# ---- Top writers + scan ---------------------------------------------------
 
 async def _top_writers(
     hass: HomeAssistant, hours: float, limit: int, exclude_accepted: bool = False
 ) -> dict:
-    """Top-DB-Schreiber der letzten <hours>h aus der states-Tabelle (über Recorder-Executor)."""
+    """Top DB writers of the last <hours>h from the states table (via recorder executor)."""
     from sqlalchemy import text
 
     from homeassistant.components.recorder import get_instance
@@ -284,12 +284,12 @@ async def _top_writers(
 
 
 async def _scan_top_writers(hass: HomeAssistant, conf: dict) -> None:
-    """Periodischer Scan: ungedrosselte, nicht-akzeptierte Vielschreiber als EIN Sammel-Repair."""
+    """Periodic scan: unthrottled, non-accepted heavy writers as ONE summary repair issue."""
     try:
         window = float(conf.get(CONF_WINDOW, DEFAULTS[CONF_WINDOW]))
         res = await _top_writers(hass, window, 60)
     except Exception:  # noqa: BLE001
-        _LOGGER.exception("recorder_throttle: Top-Writer-Scan fehlgeschlagen")
+        _LOGGER.exception("recorder_throttle: top-writer scan failed")
         return
     thr = float(conf.get(CONF_THRESHOLD, DEFAULTS[CONF_THRESHOLD]))
     policies = hass.data[DOMAIN]["policies"]
@@ -319,10 +319,10 @@ async def _scan_top_writers(hass: HomeAssistant, conf: dict) -> None:
         ir.async_delete_issue(hass, DOMAIN, SUMMARY_ISSUE)
 
 
-# ---- Setup (YAML-Import + Config-Entry) -----------------------------------
+# ---- Setup (YAML import + config entry) -----------------------------------
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """YAML (Altbestand) -> Config-Entry importieren."""
+    """Import YAML (legacy) into a config entry."""
     if DOMAIN in config:
         hass.async_create_task(
             hass.config_entries.flow.async_init(
@@ -333,7 +333,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Eigentliche Einrichtung pro Config-Entry."""
+    """Actual setup per config entry."""
     settings = {**DEFAULTS, **dict(entry.options)}
     data = hass.data.setdefault(
         DOMAIN,
@@ -344,7 +344,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _ensure_labels(hass)
     _rebuild_policies(hass)
     if not _install_hook(hass):
-        _LOGGER.error("recorder_throttle: Hook NICHT installiert — Recorder läuft ungedrosselt (fail-safe)")
+        _LOGGER.error("recorder_throttle: hook NOT installed — recorder runs unthrottled (fail-safe)")
     entry.async_on_unload(lambda: _restore_hook(hass))
 
     @callback
@@ -356,7 +356,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _register_services(hass)
 
-    # Top-Writer-Scan -> Repair-Issues
+    # Top-writer scan -> repair issues
     if settings.get(CONF_SCAN_ENABLED, True):
         interval = timedelta(minutes=int(settings.get(CONF_INTERVAL, DEFAULTS[CONF_INTERVAL])))
 
@@ -377,18 +377,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Entladen — alle async_on_unload-Callbacks (Hook-Restore, Listener, Scan) laufen automatisch."""
+    """Unload — all async_on_unload callbacks (hook restore, listeners, scan) run automatically."""
     return True
 
 
 async def _async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Options geändert -> Entry neu laden (neue Schwelle/Intervall greifen)."""
+    """Options changed -> reload the entry (new threshold/interval take effect)."""
     await hass.config_entries.async_reload(entry.entry_id)
 
 
 @callback
 def _register_services(hass: HomeAssistant) -> None:
-    """Services einmalig registrieren (überdauern Reload; Handler nutzen hass.data)."""
+    """Register services once (they survive reloads; handlers read hass.data)."""
     if hass.services.has_service(DOMAIN, SERVICE_SET_POLICY):
         return
 
@@ -408,7 +408,7 @@ def _register_services(hass: HomeAssistant) -> None:
                 hass, float(call.data["hours"]), int(call.data["limit"]), bool(call.data["exclude_accepted"])
             )
         except Exception as err:  # noqa: BLE001
-            _LOGGER.exception("recorder_throttle: top_writers fehlgeschlagen")
+            _LOGGER.exception("recorder_throttle: top_writers failed")
             return {"error": str(err), "writers": []}
 
     async def _svc_set_accepted(call: ServiceCall) -> None:

@@ -1,4 +1,4 @@
-"""Config- und Options-Flow für recorder_throttle (Einstellungsdialog)."""
+"""Config and options flow for recorder_throttle (settings dialog)."""
 from __future__ import annotations
 
 import voluptuous as vol
@@ -20,15 +20,21 @@ def _schema(opts: dict) -> vol.Schema:
     return vol.Schema(
         {
             vol.Optional(CONF_SCAN_ENABLED, default=opts.get(CONF_SCAN_ENABLED, DEFAULTS[CONF_SCAN_ENABLED])): bool,
-            vol.Optional(CONF_THRESHOLD, default=opts.get(CONF_THRESHOLD, DEFAULTS[CONF_THRESHOLD])): vol.Coerce(float),
-            vol.Optional(CONF_INTERVAL, default=opts.get(CONF_INTERVAL, DEFAULTS[CONF_INTERVAL])): vol.Coerce(int),
-            vol.Optional(CONF_WINDOW, default=opts.get(CONF_WINDOW, DEFAULTS[CONF_WINDOW])): vol.Coerce(float),
+            vol.Optional(
+                CONF_THRESHOLD, default=opts.get(CONF_THRESHOLD, DEFAULTS[CONF_THRESHOLD])
+            ): vol.All(vol.Coerce(float), vol.Range(min=0)),
+            vol.Optional(
+                CONF_INTERVAL, default=opts.get(CONF_INTERVAL, DEFAULTS[CONF_INTERVAL])
+            ): vol.All(vol.Coerce(int), vol.Range(min=1)),
+            vol.Optional(
+                CONF_WINDOW, default=opts.get(CONF_WINDOW, DEFAULTS[CONF_WINDOW])
+            ): vol.All(vol.Coerce(float), vol.Range(min=0, min_included=False)),
         }
     )
 
 
 class RecorderThrottleConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Einrichtung (Single-Instance) + YAML-Import."""
+    """Setup (single instance) + YAML import."""
 
     VERSION = 1
 
@@ -52,7 +58,7 @@ class RecorderThrottleConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class RecorderThrottleOptionsFlow(OptionsFlow):
-    """Einstellungsdialog (Schwelle, Intervall, Fenster, Scan an/aus)."""
+    """Settings dialog (threshold, interval, window, scan on/off)."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         self._entry = config_entry

@@ -1,10 +1,10 @@
-"""Konstanten für recorder_throttle."""
+"""Constants for recorder_throttle."""
 
 DOMAIN = "recorder_throttle"
 
-# Label-NAME -> Throttle-Intervall in Sekunden. 0 = gar nicht in die DB schreiben.
-# Matching erfolgt über den Label-NAMEN (label_id wird zur Laufzeit aufgelöst),
-# damit es unabhängig von der Slug-Bildung robust ist.
+# Label NAME -> throttle interval in seconds. 0 = don't write to the DB at all.
+# Matching is done by the label NAME (label_id is resolved at runtime), so it is
+# robust regardless of how the slug is generated.
 LABEL_INTERVALS = {
     "rec-off": 0,
     "rec-1min": 60,
@@ -12,7 +12,7 @@ LABEL_INTERVALS = {
     "rec-10min": 600,
 }
 
-# Label-Anlage (Name -> (Farbe, Icon)); Farben aus der HA-Label-Palette.
+# Label creation (name -> (color, icon)); colors from the HA label palette.
 LABEL_META = {
     "rec-off": ("red", "mdi:database-off-outline"),
     "rec-1min": ("blue", "mdi:database-clock-outline"),
@@ -20,7 +20,7 @@ LABEL_META = {
     "rec-10min": ("deep-purple", "mdi:database-clock-outline"),
 }
 
-# Service-Keyword -> Label-Name (None = "full" = keine Drosselung, alle rec-* entfernen).
+# Service keyword -> label name (None = "full" = no throttling, remove all rec-* labels).
 POLICY_TO_NAME = {
     "full": None,
     "off": "rec-off",
@@ -29,12 +29,12 @@ POLICY_TO_NAME = {
     "10min": "rec-10min",
 }
 
-# Label „akzeptiert" — markiert geprüfte Vielschreiber, die NICHT erneut als neuer
-# Top-Writer gemeldet werden sollen (kein Throttle-Effekt, reine Markierung).
+# "accepted" label — marks reviewed heavy writers that should NOT be reported again as
+# new top writers (no throttling effect, purely a marker).
 ACCEPTED_LABEL = "rec-accepted"
 ACCEPTED_LABEL_META = ("green", "mdi:check-decagram")
 
-# Scan/Repair — Options-Keys + Defaults (UI-Einstellungsdialog bzw. YAML-Import)
+# Scan/repair — options keys + defaults (UI settings dialog or YAML import)
 CONF_SCAN_ENABLED = "scan_enabled"
 CONF_THRESHOLD = "scan_threshold_per_min"
 CONF_INTERVAL = "scan_interval_min"
