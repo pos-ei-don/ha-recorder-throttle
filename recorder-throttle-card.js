@@ -1,4 +1,5 @@
 /* recorder-throttle-card — management card for the recorder_throttle integration.
+ * Localized: shows German when Home Assistant's language is German, English otherwise.
  * Tabs:
  *   Unthrottled — frequent writers (top_writers, policy=full), with live rate/min
  *   Throttled   — all entities with a rec-* policy (1/5/10min/off), from labels
@@ -7,18 +8,35 @@
  * Config:  type: custom:recorder-throttle-card  | title | hours:1 | limit:30
  */
 const RT_POL = [
-  { k: "full", l: "Full", c: "voll" },
-  { k: "1min", l: "1m", c: "m1" },
-  { k: "5min", l: "5m", c: "m5" },
-  { k: "10min", l: "10m", c: "m10" },
-  { k: "off", l: "Off", c: "aus" },
+  { k: "full", c: "voll" },
+  { k: "1min", c: "m1" },
+  { k: "5min", c: "m5" },
+  { k: "10min", c: "m10" },
+  { k: "off", c: "aus" },
 ];
 const RT_LABEL_POL = { rec_off: "off", rec_10min: "10min", rec_5min: "5min", rec_1min: "1min" };
-const RT_TABS = [
-  { id: "unthrottled", l: "Unthrottled" },
-  { id: "throttled", l: "Throttled" },
-  { id: "accepted", l: "Accepted" },
-];
+const RT_TAB_IDS = ["unthrottled", "throttled", "accepted"];
+
+const RT_I18N = {
+  en: {
+    header: "Recorder Throttle",
+    tab_unthrottled: "Unthrottled", tab_throttled: "Throttled", tab_accepted: "Accepted",
+    pol_full: "Full", pol_1min: "1m", pol_5min: "5m", pol_10min: "10m", pol_off: "Off",
+    stats_kept: "stats kept", no_backup: "no backup",
+    loading: "Loading …", no_entries: "No entries.",
+    more_info: "More info",
+    acc_btn: "✓ acc.", acc_title: "Mark as accepted heavy writer (stop reporting)",
+  },
+  de: {
+    header: "Recorder-Drosselung",
+    tab_unthrottled: "Ungedrosselt", tab_throttled: "Gedrosselt", tab_accepted: "Akzeptiert",
+    pol_full: "Voll", pol_1min: "1m", pol_5min: "5m", pol_10min: "10m", pol_off: "Aus",
+    stats_kept: "5-min bleibt", no_backup: "kein Backup",
+    loading: "Lade …", no_entries: "Keine Einträge.",
+    more_info: "Mehr Infos",
+    acc_btn: "✓ akz.", acc_title: "Als akzeptierten Vielschreiber markieren",
+  },
+};
 
 class RecorderThrottleCard extends HTMLElement {
   setConfig(config) {
@@ -39,6 +57,16 @@ class RecorderThrottleCard extends HTMLElement {
       this._fetch();
     }
     this._render();
+  }
+
+  _lang() {
+    const h = this._hass || {};
+    const l = (h.locale && h.locale.language) || h.language || "en";
+    return String(l).toLowerCase().split("-")[0];
+  }
+  _t(key) {
+    const t = RT_I18N[this._lang()] || RT_I18N.en;
+    return t[key] != null ? t[key] : RT_I18N.en[key];
   }
 
   connectedCallback() {
@@ -116,7 +144,7 @@ class RecorderThrottleCard extends HTMLElement {
 
   _build() {
     const card = document.createElement("ha-card");
-    card.header = this._config.title || "Recorder Throttle";
+    card.header = this._config.title || this._t("header");
     const style = document.createElement("style");
     style.textContent = `
       .rt-tabs{display:flex;gap:6px;padding:6px 12px 4px;flex-wrap:wrap}
@@ -185,13 +213,13 @@ class RecorderThrottleCard extends HTMLElement {
       throttled: this._throttledRows().length,
       accepted: this._acceptedRows().length,
     };
-    this._tabsEl.innerHTML = RT_TABS.map(
-      (t) => `<button data-tab="${t.id}" class="${t.id === this._tab ? "on" : ""}">${t.l} (${counts[t.id]})</button>`
+    this._tabsEl.innerHTML = RT_TAB_IDS.map(
+      (id) => `<button data-tab="${id}" class="${id === this._tab ? "on" : ""}">${this._t("tab_" + id)} (${counts[id]})</button>`
     ).join("");
 
     const rows = this._rowsFor(this._tab);
     if (!rows.length) {
-      this._wrap.innerHTML = `<div class="rt-empty">${this._data === null && this._tab === "unthrottled" ? "Loading …" : "No entries."}</div>`;
+      this._wrap.innerHTML = `<div class="rt-empty">${this._data === null && this._tab === "unthrottled" ? this._t("loading") : this._t("no_entries")}</div>`;
       return;
     }
     this._wrap.innerHTML = rows
@@ -200,18 +228,18 @@ class RecorderThrottleCard extends HTMLElement {
         const pol = w.policy || "full";
         const rate = w.per_min != null ? `${w.per_min}/min` : "—";
         const stat = w.has_statistics;
-        const statBadge = stat === undefined ? "" : `<span class="rt-stat ${stat ? "y" : "n"}">${stat ? "stats kept" : "no backup"}</span>`;
+        const statBadge = stat === undefined ? "" : `<span class="rt-stat ${stat ? "y" : "n"}">${stat ? this._t("stats_kept") : this._t("no_backup")}</span>`;
         const seg = RT_POL.map(
-          (p) => `<button data-act="policy" data-eid="${eid}" data-k="${p.k}" class="${p.c}${p.k === pol ? " on" : ""}">${p.l}</button>`
+          (p) => `<button data-act="policy" data-eid="${eid}" data-k="${p.k}" class="${p.c}${p.k === pol ? " on" : ""}">${this._t("pol_" + p.k)}</button>`
         ).join("");
         const acc = !!w.accepted;
         return `<div class="rt-row">
-          <div class="rt-info" data-act="info" data-eid="${eid}" title="More info">
+          <div class="rt-info" data-act="info" data-eid="${eid}" title="${this._t("more_info")}">
             <div class="rt-name">${this._name(eid, w.name)}</div>
             <div class="rt-sub"><span class="rt-rate">${rate}</span> · ${eid}${statBadge}</div>
           </div>
           <div class="rt-seg">${seg}</div>
-          <button class="rt-acc${acc ? " on" : ""}" data-act="accept" data-eid="${eid}" data-acc="${acc ? "1" : "0"}" title="Mark as accepted heavy writer (stop reporting)">✓ acc.</button>
+          <button class="rt-acc${acc ? " on" : ""}" data-act="accept" data-eid="${eid}" data-acc="${acc ? "1" : "0"}" title="${this._t("acc_title")}">${this._t("acc_btn")}</button>
         </div>`;
       })
       .join("");
@@ -221,7 +249,7 @@ class RecorderThrottleCard extends HTMLElement {
     return 2 + Math.ceil((this._rowsFor(this._tab).length || 6) * 0.6);
   }
   static getStubConfig() {
-    return { title: "Recorder Throttle", hours: 1, limit: 30 };
+    return { hours: 1, limit: 30 };
   }
 }
 
@@ -230,6 +258,6 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "recorder-throttle-card",
   name: "Recorder Throttle",
-  description: "Throttle per-entity recorder DB writes",
+  description: "Throttle per-entity recorder DB writes (EN/DE)",
 });
-console.info("%c recorder-throttle-card %c v0.4 ", "background:#1f6feb;color:#fff", "");
+console.info("%c recorder-throttle-card %c v0.5 ", "background:#1f6feb;color:#fff", "");
