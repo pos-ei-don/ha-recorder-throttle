@@ -32,6 +32,10 @@
     "top_writers_summary": {
       "title": "{count} unthrottled DB heavy writers",
       "description": "**{count}** entities currently write unthrottled at ≥ {threshold}/min to the database, e.g.: {examples}.\n\nManage them in the \"Recorder Throttle\" card — throttle each or mark as accepted. This notice clears once all are handled."
+    },
+    "hook_not_installed": {
+      "title": "Recorder Throttle: hook not installed",
+      "description": "Recorder Throttle could not patch the recorder, so database writes are **not** being throttled (the recorder itself keeps running normally). This usually happens after a Home Assistant update changed the recorder internals — update the integration or check the log."
     }
   }
 }

@@ -32,6 +32,10 @@
     "top_writers_summary": {
       "title": "{count} ungedrosselte DB-Vielschreiber",
       "description": "Aktuell schreiben **{count}** Entities ungedrosselt ≥ {threshold}/min in die Datenbank, z. B.: {examples}.\n\nVerwalte sie in der Karte „Recorder-Drosselung“ — pro Entity **drosseln** oder als **akzeptiert** markieren. Sobald alle bearbeitet sind, verschwindet dieser Hinweis."
+    },
+    "hook_not_installed": {
+      "title": "Recorder-Drosselung: Hook nicht installiert",
+      "description": "Recorder-Drosselung konnte den Recorder nicht patchen — die DB-Schreibzugriffe werden **nicht** gedrosselt (der Recorder selbst läuft normal weiter). Das passiert meist nach einem Home-Assistant-Update, das die Recorder-Interna geändert hat — Integration aktualisieren oder das Log prüfen."
     }
   }
 }

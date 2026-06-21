@@ -64,6 +64,7 @@ SERVICE_TOP_WRITERS = "top_writers"
 SERVICE_SET_ACCEPTED = "set_accepted"
 ISSUE_PREFIX = "top_writer_"  # legacy (former per-entity issues) — cleaned up
 SUMMARY_ISSUE = "rt_top_writers_summary"
+HOOK_ISSUE = "hook_not_installed"
 
 _TOP_WRITERS_SQL = (
     "SELECT sm.entity_id, COUNT(*) AS c "
@@ -198,6 +199,23 @@ def _restore_hook(hass: HomeAssistant) -> None:
             data["rec"] = None
     except Exception:  # noqa: BLE001 — fail-safe; a failed restore must not break unload
         _LOGGER.exception("recorder_throttle: restoring the recorder hook failed")
+
+
+@callback
+def _set_hook_issue(hass: HomeAssistant, installed: bool) -> None:
+    """Surface a Repairs issue when the hook could not be installed (cleared once it is)."""
+    if installed:
+        ir.async_delete_issue(hass, DOMAIN, HOOK_ISSUE)
+    else:
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            HOOK_ISSUE,
+            is_fixable=False,
+            severity=ir.IssueSeverity.ERROR,
+            translation_key="hook_not_installed",
+            learn_more_url="https://github.com/pos-ei-don/ha-recorder-throttle",
+        )
 
 
 # ---- Label operations -----------------------------------------------------
@@ -344,7 +362,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _ensure_labels(hass)
     _rebuild_policies(hass)
-    if not _install_hook(hass):
+    if _install_hook(hass):
+        _set_hook_issue(hass, True)
+    else:
+        _set_hook_issue(hass, False)
         _LOGGER.error("recorder_throttle: hook NOT installed — recorder runs unthrottled (fail-safe)")
     entry.async_on_unload(lambda: _restore_hook(hass))
 
@@ -366,7 +387,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         current = getattr(rec, "_process_state_changed_event_into_session", None)
         if current is not None and not getattr(current, "_rt_wrapped", False):
             _LOGGER.info("recorder_throttle: recorder reload detected — re-installing hook")
-            _install_hook(hass)
+            _set_hook_issue(hass, _install_hook(hass))
 
     entry.async_on_unload(async_track_time_interval(hass, _ensure_hook, timedelta(seconds=30)))
 
