@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Source for icon.png (256x256) and icon@2x.png (512x512). Render with a transparent background. -->
+  <defs>
+    <linearGradient id="db" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4aa6ff"/>
+      <stop offset="1" stop-color="#1450b0"/>
+    </linearGradient>
+    <linearGradient id="gf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dfe8f3"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(256,256) scale(1.06) translate(-266,-289)">
+    <!-- Database cylinder = recorder -->
+    <g>
+      <path d="M64 150 V322 a136 40 0 0 0 272 0 V150 a136 40 0 0 0 -272 0 Z" fill="url(#db)"/>
+      <path d="M64 210 a136 40 0 0 0 272 0" fill="none" stroke="#0e3a86" stroke-opacity=".45" stroke-width="7"/>
+      <path d="M64 268 a136 40 0 0 0 272 0" fill="none" stroke="#0e3a86" stroke-opacity=".45" stroke-width="7"/>
+      <ellipse cx="200" cy="150" rx="136" ry="40" fill="#5fb0ff"/>
+      <ellipse cx="200" cy="150" rx="96" ry="24" fill="#bfe0ff" opacity=".55"/>
+    </g>
+    <!-- Throttle gauge badge -->
+    <g transform="translate(360 360)">
+      <circle r="108" fill="#1c1f26"/>
+      <circle r="96" fill="url(#gf)"/>
+      <path d="M-62 36 A72 72 0 1 1 62 36" fill="none" stroke="#c6d4e6" stroke-width="16" stroke-linecap="round"/>
+      <path d="M-62 36 A72 72 0 0 1 -26 -67" fill="none" stroke="#1a7f37" stroke-width="16" stroke-linecap="round"/>
+      <g transform="rotate(-58)"><path d="M-7 6 L0 -66 L7 6 Z" fill="#1f6feb"/></g>
+      <circle r="14" fill="#1f6feb"/>
+      <circle r="6" fill="#fff"/>
+    </g>
+  </g>
+</svg>
