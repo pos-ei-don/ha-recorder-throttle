@@ -80,7 +80,8 @@ class RecorderThrottleCard extends HTMLElement {
   }
 
   async _fetch() {
-    if (!this._hass) return;
+    if (!this._hass || this._fetching) return;
+    this._fetching = true;
     try {
       const r = await this._hass.callWS({
         type: "call_service",
@@ -93,12 +94,17 @@ class RecorderThrottleCard extends HTMLElement {
       this._render();
     } catch (e) {
       /* building / no perms */
+    } finally {
+      this._fetching = false;
     }
   }
 
   _stat(eid) {
     const st = this._hass.states[eid];
     return !!(st && st.attributes && st.attributes.state_class);
+  }
+  _esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   _name(eid, fallback) {
     const st = this._hass.states[eid];
@@ -235,7 +241,7 @@ class RecorderThrottleCard extends HTMLElement {
         const acc = !!w.accepted;
         return `<div class="rt-row">
           <div class="rt-info" data-act="info" data-eid="${eid}" title="${this._t("more_info")}">
-            <div class="rt-name">${this._name(eid, w.name)}</div>
+            <div class="rt-name">${this._esc(this._name(eid, w.name))}</div>
             <div class="rt-sub"><span class="rt-rate">${rate}</span> · ${eid}${statBadge}</div>
           </div>
           <div class="rt-seg">${seg}</div>
@@ -261,4 +267,4 @@ window.customCards.push({
   description: "Throttle per-entity recorder DB writes (EN/DE)",
   documentationURL: "https://github.com/pos-ei-don/ha-recorder-throttle",
 });
-console.info("%c recorder-throttle-card %c v0.6 ", "background:#1f6feb;color:#fff", "");
+console.info("%c recorder-throttle-card %c v0.7 ", "background:#1f6feb;color:#fff", "");

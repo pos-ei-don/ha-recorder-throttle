@@ -62,7 +62,6 @@ SERVICE_SET_ENABLED = "set_enabled"
 SERVICE_REBUILD = "rebuild"
 SERVICE_TOP_WRITERS = "top_writers"
 SERVICE_SET_ACCEPTED = "set_accepted"
-ISSUE_PREFIX = "top_writer_"  # legacy (former per-entity issues) — cleaned up
 SUMMARY_ISSUE = "rt_top_writers_summary"
 HOOK_ISSUE = "hook_not_installed"
 
@@ -107,6 +106,8 @@ def _rebuild_policies(hass: HomeAssistant) -> None:
                 if best is not None:
                     pol[entry.entity_id] = best
         data["policies"] = pol
+        # Drop stale per-entity timestamps for entities that are no longer throttled.
+        data["last"] = {e: t for e, t in data.get("last", {}).items() if e in pol}
         _LOGGER.debug("recorder_throttle: %d entities throttled", len(pol))
     except Exception:  # noqa: BLE001 — fail-safe
         _LOGGER.exception("recorder_throttle: rebuilding policies failed")
@@ -253,9 +254,6 @@ async def _set_accepted(hass: HomeAssistant, entity_ids: list[str], accepted: bo
         labels = set(entry.labels)
         labels.add(acc_id) if accepted else labels.discard(acc_id)
         ent_reg.async_update_entity(eid, labels=labels)
-    if accepted:
-        for eid in entity_ids:
-            ir.async_delete_issue(hass, DOMAIN, ISSUE_PREFIX + eid)
 
 
 # ---- Top writers + scan ---------------------------------------------------
@@ -304,6 +302,8 @@ async def _top_writers(
 
 async def _scan_top_writers(hass: HomeAssistant, conf: dict) -> None:
     """Periodic scan: unthrottled, non-accepted heavy writers as ONE summary repair issue."""
+    if not (hass.data.get(DOMAIN) or {}).get("active", False):
+        return  # entry was unloaded while a scan task was still in flight
     try:
         window = float(conf.get(CONF_WINDOW, DEFAULTS[CONF_WINDOW]))
         res = await _top_writers(hass, window, 60)
@@ -318,10 +318,6 @@ async def _scan_top_writers(hass: HomeAssistant, conf: dict) -> None:
         for w in res["writers"]
         if w["per_min"] >= thr and w["entity_id"] not in accepted and policies.get(w["entity_id"]) is None
     ]
-    reg = ir.async_get(hass)
-    for issue in list(reg.issues.values()):
-        if issue.domain == DOMAIN and issue.issue_id.startswith(ISSUE_PREFIX):
-            ir.async_delete_issue(hass, DOMAIN, issue.issue_id)
     if flagged:
         examples = ", ".join(w["name"] for w in flagged[:5]) + (" …" if len(flagged) > 5 else "")
         ir.async_create_issue(
@@ -359,6 +355,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         {"enabled": True, "policies": {}, "last": {}, "orig": None, "rec": None, "stats": {"dropped": 0, "passed": 0}},
     )
     data["settings"] = settings
+    data["active"] = True
+    entry.async_on_unload(lambda: data.update({"active": False}))
 
     _ensure_labels(hass)
     _rebuild_policies(hass)

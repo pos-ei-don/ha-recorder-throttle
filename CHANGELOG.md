@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.4
+- Card: HTML-escape entity names (prevents XSS via crafted friendly names).
+- Use the current Home Assistant options-flow pattern (no deprecation warning).
+
 ## 0.3.3
 - Show a Repairs issue when the recorder hook can't be installed (was log-only).
 

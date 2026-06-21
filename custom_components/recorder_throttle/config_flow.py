@@ -60,10 +60,7 @@ class RecorderThrottleConfigFlow(ConfigFlow, domain=DOMAIN):
 class RecorderThrottleOptionsFlow(OptionsFlow):
     """Settings dialog (threshold, interval, window, scan on/off)."""
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        self._entry = config_entry
-
     async def async_step_init(self, user_input=None) -> ConfigFlowResult:
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
-        return self.async_show_form(step_id="init", data_schema=_schema(dict(self._entry.options)))
+        return self.async_show_form(step_id="init", data_schema=_schema(dict(self.config_entry.options)))
