@@ -54,7 +54,7 @@ class RecorderThrottleConfigFlow(ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
-        return RecorderThrottleOptionsFlow(config_entry)
+        return RecorderThrottleOptionsFlow()
 
 
 class RecorderThrottleOptionsFlow(OptionsFlow):

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.1
+- Fix the integration options dialog failing to load (500 error, regression in 0.4.0).
+
 ## 0.4.0
 - Repairs notice is now fixable in-app (stop future reports) instead of linking out to a website.
 
