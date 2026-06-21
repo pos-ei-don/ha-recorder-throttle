@@ -30,8 +30,7 @@
   },
   "issues": {
     "top_writers_summary": {
-      "title": "{count} ungedrosselte DB-Vielschreiber",
-      "description": "Aktuell schreiben **{count}** Entities ungedrosselt ≥ {threshold}/min in die Datenbank, z. B.: {examples}.\n\nVerwalte sie in der Karte „Recorder-Drosselung“ — pro Entity **drosseln** oder als **akzeptiert** markieren. Sobald alle bearbeitet sind, verschwindet dieser Hinweis.",
+      "title": "{count} ungedrosselte DB-Vielschreiber (≥ {threshold}/min), z. B.: {examples}",
       "fix_flow": {
         "step": {
           "confirm": {
