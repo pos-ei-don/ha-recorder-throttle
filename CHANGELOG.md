@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.5
+- Card now ships with the integration and loads automatically — no manual dashboard resource needed.
+
 ## 0.3.4
 - Card: HTML-escape entity names (prevents XSS via crafted friendly names).
 - Use the current Home Assistant options-flow pattern (no deprecation warning).

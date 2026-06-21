@@ -41,19 +41,19 @@ A fail-safe instance hook on `Recorder._process_state_changed_event_into_session
 ### Manual
 Copy `custom_components/recorder_throttle/` into your `<config>/custom_components/`, restart, then add the integration as above.
 
-## Management card (optional but recommended)
-1. Copy `recorder-throttle-card.js` into `<config>/www/`.
-2. **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/recorder-throttle-card.js`
-   - Type: **JavaScript Module**
-3. Add the card to a dashboard:
-   ```yaml
-   type: custom:recorder-throttle-card
-   title: Recorder Throttle
-   hours: 1     # window for the live rate
-   limit: 30    # max rows in the "Unthrottled" tab
-   ```
-   Then hard-reload (Ctrl+Shift+R).
+## Management card
+The card **ships with the integration and loads automatically** — no manual dashboard resource needed. After installing + restarting, just add it to a dashboard (hard-reload with Ctrl+Shift+R first):
+
+```yaml
+type: custom:recorder-throttle-card
+title: Recorder Throttle
+hours: 1     # window for the live rate
+limit: 30    # max rows in the "Unthrottled" tab
+```
+
+The card is localized: it shows German when Home Assistant's language is German, English otherwise.
+
+> Manual-only setup (card without the integration, rare): copy `custom_components/recorder_throttle/recorder-throttle-card.js` to `<config>/www/` and add it as a **JavaScript Module** resource (`/local/recorder-throttle-card.js`).
 
 ## Usage
 - In the card, pick a level per entity (**Full · 1m · 5m · 10m · Off**) — applies instantly (sets the matching `rec-*` label).

@@ -259,12 +259,14 @@ class RecorderThrottleCard extends HTMLElement {
   }
 }
 
-customElements.define("recorder-throttle-card", RecorderThrottleCard);
-window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "recorder-throttle-card",
-  name: "Recorder Throttle",
-  description: "Throttle per-entity recorder DB writes (EN/DE)",
-  documentationURL: "https://github.com/pos-ei-don/ha-recorder-throttle",
-});
-console.info("%c recorder-throttle-card %c v0.7 ", "background:#1f6feb;color:#fff", "");
+if (!customElements.get("recorder-throttle-card")) {
+  customElements.define("recorder-throttle-card", RecorderThrottleCard);
+  window.customCards = window.customCards || [];
+  window.customCards.push({
+    type: "recorder-throttle-card",
+    name: "Recorder Throttle",
+    description: "Throttle per-entity recorder DB writes (EN/DE)",
+    documentationURL: "https://github.com/pos-ei-don/ha-recorder-throttle",
+  });
+  console.info("%c recorder-throttle-card %c v0.8 ", "background:#1f6feb;color:#fff", "");
+}

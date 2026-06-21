@@ -64,6 +64,8 @@ SERVICE_TOP_WRITERS = "top_writers"
 SERVICE_SET_ACCEPTED = "set_accepted"
 SUMMARY_ISSUE = "rt_top_writers_summary"
 HOOK_ISSUE = "hook_not_installed"
+CARD_FILENAME = "recorder-throttle-card.js"
+CARD_URL = "/recorder_throttle/recorder-throttle-card.js"
 
 _TOP_WRITERS_SQL = (
     "SELECT sm.entity_id, COUNT(*) AS c "
@@ -334,6 +336,34 @@ async def _scan_top_writers(hass: HomeAssistant, conf: dict) -> None:
         ir.async_delete_issue(hass, DOMAIN, SUMMARY_ISSUE)
 
 
+# ---- Lovelace card registration -------------------------------------------
+
+async def _register_card(hass: HomeAssistant) -> None:
+    """Serve the Lovelace card from the integration and load it on the frontend.
+
+    This makes the card available with a plain HACS *integration* install — no
+    manual dashboard resource needed. Registered once; harmless to leave on unload.
+    """
+    data = hass.data.setdefault(DOMAIN, {})
+    if data.get("card_registered"):
+        return
+    try:
+        from pathlib import Path
+
+        from homeassistant.components.frontend import add_extra_js_url
+        from homeassistant.components.http import StaticPathConfig
+
+        card = Path(__file__).parent / CARD_FILENAME
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig(CARD_URL, str(card), False)]
+        )
+        add_extra_js_url(hass, CARD_URL)
+        data["card_registered"] = True
+        _LOGGER.debug("recorder_throttle: registered Lovelace card at %s", CARD_URL)
+    except Exception:  # noqa: BLE001 — the card is optional; never block setup
+        _LOGGER.warning("recorder_throttle: could not register the Lovelace card", exc_info=True)
+
+
 # ---- Setup (YAML import + config entry) -----------------------------------
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -358,6 +388,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     data["active"] = True
     entry.async_on_unload(lambda: data.update({"active": False}))
 
+    await _register_card(hass)
     _ensure_labels(hass)
     _rebuild_policies(hass)
     if _install_hook(hass):
