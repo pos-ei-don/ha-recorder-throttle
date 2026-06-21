@@ -29,7 +29,7 @@ Home Assistant only offers all-or-nothing per entity (`include`/`exclude`). This
 ## How it works
 A fail-safe instance hook on `Recorder._process_state_changed_event_into_session`: state-change events of throttled entities are dropped in the recorder thread **before** the DB row is built. The state machine is never touched, so current state / automations / UI are unaffected — only the raw `states` rows are reduced.
 
-> ⚠️ This relies on an internal recorder method. After Home Assistant core updates, do a quick smoke test (a throttled sensor + the log). On any error the integration does **not** patch and the recorder runs normally.
+> ⚠️ This relies on an internal recorder method. After Home Assistant core updates, do a quick smoke test (a throttled sensor + the log). On any error the integration does **not** patch and the recorder runs normally. If the recorder is reloaded at runtime (e.g. during development), the hook re-installs itself automatically within ~30s.
 
 ## Installation
 

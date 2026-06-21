@@ -195,6 +195,7 @@ def _restore_hook(hass: HomeAssistant) -> None:
         if data.get("rec") is not None and data.get("orig") is not None:
             data["rec"]._process_state_changed_event_into_session = data["orig"]  # noqa: SLF001
             data["orig"] = None
+            data["rec"] = None
     except Exception:  # noqa: BLE001 — fail-safe; a failed restore must not break unload
         _LOGGER.exception("recorder_throttle: restoring the recorder hook failed")
 
@@ -346,6 +347,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not _install_hook(hass):
         _LOGGER.error("recorder_throttle: hook NOT installed — recorder runs unthrottled (fail-safe)")
     entry.async_on_unload(lambda: _restore_hook(hass))
+
+    @callback
+    def _ensure_hook(_now=None) -> None:
+        """Self-heal: re-install the hook if the recorder was reloaded/restarted at runtime.
+
+        Reloading the recorder without restarting HA (common during development) replaces
+        or resets its method, dropping our patch. This re-installs it within one tick.
+        """
+        try:
+            from homeassistant.components.recorder import get_instance
+
+            rec = get_instance(hass)
+        except Exception:  # noqa: BLE001 — fail-safe
+            return
+        if rec is None:
+            return
+        current = getattr(rec, "_process_state_changed_event_into_session", None)
+        if current is not None and not getattr(current, "_rt_wrapped", False):
+            _LOGGER.info("recorder_throttle: recorder reload detected — re-installing hook")
+            _install_hook(hass)
+
+    entry.async_on_unload(async_track_time_interval(hass, _ensure_hook, timedelta(seconds=30)))
 
     @callback
     def _on_registry_update(_event) -> None:
