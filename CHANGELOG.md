@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+- Repairs "Fix" now actually resolves the issue: throttle all reported entities to 1 or 5 minutes, mark as accepted, or stop reporting (menu).
+- The card registers itself as a Lovelace resource for reliable loading.
+
 ## 0.5.0
 - Card: bulk action to throttle all listed heavy writers to 1 or 5 minutes at once.
 - Clearer label for the Repairs toggle ("Create a Repairs notice for new heavy writers").

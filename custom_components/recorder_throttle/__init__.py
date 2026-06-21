@@ -344,10 +344,11 @@ async def _scan_top_writers(hass: HomeAssistant, conf: dict) -> None:
 # ---- Lovelace card registration -------------------------------------------
 
 async def _register_card(hass: HomeAssistant) -> None:
-    """Serve the Lovelace card from the integration and load it on the frontend.
+    """Serve the Lovelace card from the integration and make the dashboard load it.
 
-    This makes the card available with a plain HACS *integration* install — no
-    manual dashboard resource needed. Registered once; harmless to leave on unload.
+    Serves the JS via a static path, then registers it as a Lovelace *resource*
+    (the reliable loader for custom cards) with a fallback to add_extra_js_url. So a
+    plain HACS *integration* install delivers the card — no manual resource. Idempotent.
     """
     data = hass.data.setdefault(DOMAIN, {})
     if data.get("card_registered"):
@@ -355,18 +356,48 @@ async def _register_card(hass: HomeAssistant) -> None:
     try:
         from pathlib import Path
 
-        from homeassistant.components.frontend import add_extra_js_url
         from homeassistant.components.http import StaticPathConfig
 
         card = Path(__file__).parent / CARD_FILENAME
         await hass.http.async_register_static_paths(
             [StaticPathConfig(CARD_URL, str(card), False)]
         )
+    except Exception:  # noqa: BLE001 — the card is optional; never block setup
+        _LOGGER.warning("recorder_throttle: could not serve the Lovelace card", exc_info=True)
+        return
+
+    if await _register_lovelace_resource(hass):
+        data["card_registered"] = True
+        return
+    # Fallback: load it as an app-level module.
+    try:
+        from homeassistant.components.frontend import add_extra_js_url
+
         add_extra_js_url(hass, CARD_URL)
         data["card_registered"] = True
-        _LOGGER.debug("recorder_throttle: registered Lovelace card at %s", CARD_URL)
-    except Exception:  # noqa: BLE001 — the card is optional; never block setup
-        _LOGGER.warning("recorder_throttle: could not register the Lovelace card", exc_info=True)
+        _LOGGER.debug("recorder_throttle: card loaded via add_extra_js_url")
+    except Exception:  # noqa: BLE001
+        _LOGGER.warning("recorder_throttle: could not load the Lovelace card", exc_info=True)
+
+
+async def _register_lovelace_resource(hass: HomeAssistant) -> bool:
+    """Add the card as a Lovelace resource (storage mode). True on success/already present."""
+    try:
+        lovelace = hass.data.get("lovelace")
+        resources = getattr(lovelace, "resources", None) if lovelace is not None else None
+        if resources is None or not hasattr(resources, "async_create_item"):
+            return False  # not available / YAML mode -> caller falls back
+        if hasattr(resources, "loaded") and not resources.loaded:
+            await resources.async_load()
+        for item in resources.async_items():
+            if (item.get("url") or "").split("?")[0] == CARD_URL:
+                return True  # already registered
+        await resources.async_create_item({"res_type": "module", "url": CARD_URL})
+        _LOGGER.info("recorder_throttle: registered Lovelace resource %s", CARD_URL)
+        return True
+    except Exception:  # noqa: BLE001
+        _LOGGER.debug("recorder_throttle: lovelace resource registration unavailable", exc_info=True)
+        return False
 
 
 # ---- Setup (YAML import + config entry) -----------------------------------

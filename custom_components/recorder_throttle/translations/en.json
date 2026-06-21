@@ -33,9 +33,15 @@
       "title": "{count} unthrottled DB heavy writers (≥ {threshold}/min), e.g.: {examples}",
       "fix_flow": {
         "step": {
-          "confirm": {
-            "title": "Stop reporting new heavy writers?",
-            "description": "This turns off the scan for new unthrottled heavy writers, so this notice won't appear again. You can re-enable it anytime under the integration's options."
+          "init": {
+            "title": "Resolve unthrottled heavy writers",
+            "description": "Pick an action — it applies to all reported entities.",
+            "menu_options": {
+              "throttle_1min": "Throttle all to 1 minute (recommended)",
+              "throttle_5min": "Throttle all to 5 minutes",
+              "accept_all": "Mark all as accepted (keep full rate, stop reporting)",
+              "stop_reporting": "Stop reporting entirely"
+            }
           }
         }
       }

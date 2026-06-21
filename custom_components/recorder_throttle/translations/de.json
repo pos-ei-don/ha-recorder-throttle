@@ -33,9 +33,15 @@
       "title": "{count} ungedrosselte DB-Vielschreiber (≥ {threshold}/min), z. B.: {examples}",
       "fix_flow": {
         "step": {
-          "confirm": {
-            "title": "Neue Vielschreiber nicht mehr melden?",
-            "description": "Schaltet den Scan auf neue, ungedrosselte Vielschreiber ab — dieser Hinweis erscheint dann nicht mehr. Du kannst ihn jederzeit in den Optionen der Integration wieder aktivieren."
+          "init": {
+            "title": "Ungedrosselte Vielschreiber beheben",
+            "description": "Aktion wählen — sie wirkt auf alle gemeldeten Entities.",
+            "menu_options": {
+              "throttle_1min": "Alle auf 1 Minute drosseln (empfohlen)",
+              "throttle_5min": "Alle auf 5 Minuten drosseln",
+              "accept_all": "Alle als akzeptiert markieren (voll lassen, nicht mehr melden)",
+              "stop_reporting": "Meldungen ganz abschalten"
+            }
           }
         }
       }
