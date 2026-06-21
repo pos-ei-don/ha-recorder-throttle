@@ -217,7 +217,6 @@ def _set_hook_issue(hass: HomeAssistant, installed: bool) -> None:
             is_fixable=False,
             severity=ir.IssueSeverity.ERROR,
             translation_key="hook_not_installed",
-            learn_more_url="https://github.com/pos-ei-don/ha-recorder-throttle",
         )
 
 
@@ -326,11 +325,10 @@ async def _scan_top_writers(hass: HomeAssistant, conf: dict) -> None:
             hass,
             DOMAIN,
             SUMMARY_ISSUE,
-            is_fixable=False,
+            is_fixable=True,
             severity=ir.IssueSeverity.WARNING,
             translation_key="top_writers_summary",
             translation_placeholders={"count": str(len(flagged)), "examples": examples, "threshold": str(int(thr))},
-            learn_more_url="https://github.com/pos-ei-don/ha-recorder-throttle",
         )
     else:
         ir.async_delete_issue(hass, DOMAIN, SUMMARY_ISSUE)

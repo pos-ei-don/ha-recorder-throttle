@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.0
+- Repairs notice is now fixable in-app (stop future reports) instead of linking out to a website.
+
 ## 0.3.5
 - Card now ships with the integration and loads automatically — no manual dashboard resource needed.
 

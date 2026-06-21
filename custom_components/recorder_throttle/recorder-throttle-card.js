@@ -268,5 +268,5 @@ if (!customElements.get("recorder-throttle-card")) {
     description: "Throttle per-entity recorder DB writes (EN/DE)",
     documentationURL: "https://github.com/pos-ei-don/ha-recorder-throttle",
   });
-  console.info("%c recorder-throttle-card %c v0.8 ", "background:#1f6feb;color:#fff", "");
+  console.info("%c recorder-throttle-card %c v0.4.0 ", "background:#1f6feb;color:#fff", "");
 }

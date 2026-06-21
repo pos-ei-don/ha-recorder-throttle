@@ -5,7 +5,7 @@
         "title": "Recorder Throttle",
         "description": "Drosselt DB-Schreibzugriffe pro Entity (über rec-* Labels). Hier konfigurierst du den automatischen Scan auf neue, ungedrosselte Vielschreiber.",
         "data": {
-          "scan_enabled": "Scan auf neue Vielschreiber aktiv",
+          "scan_enabled": "Neue Vielschreiber in Reparaturen melden",
           "scan_threshold_per_min": "Schwelle (Writes/min)",
           "scan_interval_min": "Scan-Intervall (Minuten)",
           "scan_window_hours": "Messfenster (Stunden)"
@@ -18,9 +18,9 @@
     "step": {
       "init": {
         "title": "Recorder Throttle — Einstellungen",
-        "description": "Ab welcher Schreibrate ein ungedrosseltes Gerät als neuer Vielschreiber gemeldet wird.",
+        "description": "Schalter aus = es wird nie ein Reparatur-Hinweis erzeugt. Wenn an: die Schwelle ist die Schreibrate, ab der ein ungedrosseltes Gerät gemeldet wird.",
         "data": {
-          "scan_enabled": "Scan auf neue Vielschreiber aktiv",
+          "scan_enabled": "Neue Vielschreiber in Reparaturen melden",
           "scan_threshold_per_min": "Schwelle (Writes/min)",
           "scan_interval_min": "Scan-Intervall (Minuten)",
           "scan_window_hours": "Messfenster (Stunden)"
@@ -31,7 +31,15 @@
   "issues": {
     "top_writers_summary": {
       "title": "{count} ungedrosselte DB-Vielschreiber",
-      "description": "Aktuell schreiben **{count}** Entities ungedrosselt ≥ {threshold}/min in die Datenbank, z. B.: {examples}.\n\nVerwalte sie in der Karte „Recorder-Drosselung“ — pro Entity **drosseln** oder als **akzeptiert** markieren. Sobald alle bearbeitet sind, verschwindet dieser Hinweis."
+      "description": "Aktuell schreiben **{count}** Entities ungedrosselt ≥ {threshold}/min in die Datenbank, z. B.: {examples}.\n\nVerwalte sie in der Karte „Recorder-Drosselung“ — pro Entity **drosseln** oder als **akzeptiert** markieren. Sobald alle bearbeitet sind, verschwindet dieser Hinweis.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Neue Vielschreiber nicht mehr melden?",
+            "description": "Schaltet den Scan auf neue, ungedrosselte Vielschreiber ab — dieser Hinweis erscheint dann nicht mehr. Du kannst ihn jederzeit in den Optionen der Integration wieder aktivieren."
+          }
+        }
+      }
     },
     "hook_not_installed": {
       "title": "Recorder-Drosselung: Hook nicht installiert",
