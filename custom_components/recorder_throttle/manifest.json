@@ -1,6 +1,7 @@
 {
   "domain": "recorder_throttle",
   "name": "Recorder Throttle",
+  "after_dependencies": ["frontend", "http"],
   "codeowners": ["@pos-ei-don"],
   "config_flow": true,
   "dependencies": ["recorder"],
