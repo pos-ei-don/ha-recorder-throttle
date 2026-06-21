@@ -1,0 +1,78 @@
+set_policy:
+  name: Set recording policy
+  description: >-
+    Set the DB recording policy for entities (via rec-* labels).
+    full = every change, off = never, 1min/5min/10min = at most one write per interval.
+  target:
+    entity: {}
+  fields:
+    entity_id:
+      name: Entities
+      required: true
+      selector:
+        entity:
+          multiple: true
+    policy:
+      name: Policy
+      description: full | off | 1min | 5min | 10min
+      required: true
+      selector:
+        select:
+          options: ["full", "off", "1min", "5min", "10min"]
+
+set_accepted:
+  name: Mark as accepted
+  description: >-
+    Mark entities as an "accepted heavy writer" (label rec-accepted) so they are no
+    longer reported as a new top writer. No throttling effect.
+  target:
+    entity: {}
+  fields:
+    entity_id:
+      name: Entities
+      required: true
+      selector:
+        entity:
+          multiple: true
+    accepted:
+      name: Accepted
+      description: true = mark, false = remove mark
+      default: true
+      selector:
+        boolean: {}
+
+top_writers:
+  name: List top DB writers
+  description: >-
+    Returns the entities with the most states writes in the time window (response data),
+    including current policy and statistics status — to decide what to throttle.
+  fields:
+    hours:
+      name: Window (hours)
+      default: 1
+      selector:
+        number: { min: 0.1, max: 168, step: 0.5, mode: box }
+    limit:
+      name: Limit
+      default: 30
+      selector:
+        number: { min: 1, max: 200, mode: box }
+    exclude_accepted:
+      name: Exclude accepted
+      default: false
+      selector:
+        boolean: {}
+
+set_enabled:
+  name: Throttling on/off (kill switch)
+  description: Enable or disable throttling globally without a restart (off = everything is recorded again).
+  fields:
+    enabled:
+      name: Enabled
+      required: true
+      selector:
+        boolean: {}
+
+rebuild:
+  name: Reload policies
+  description: Re-reads the rec-* labels (normally automatic on label changes).

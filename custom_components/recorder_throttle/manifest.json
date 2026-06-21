@@ -1,0 +1,12 @@
+{
+  "domain": "recorder_throttle",
+  "name": "Recorder Throttle",
+  "version": "0.3.0",
+  "documentation": "https://github.com/pos-ei-don/ha-recorder-throttle",
+  "issue_tracker": "https://github.com/pos-ei-don/ha-recorder-throttle/issues",
+  "dependencies": ["recorder"],
+  "codeowners": ["@pos-ei-don"],
+  "config_flow": true,
+  "integration_type": "service",
+  "iot_class": "local_push"
+}

@@ -1,0 +1,37 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Recorder Throttle",
+        "description": "Drosselt DB-Schreibzugriffe pro Entity (über rec-* Labels). Hier konfigurierst du den automatischen Scan auf neue, ungedrosselte Vielschreiber.",
+        "data": {
+          "scan_enabled": "Scan auf neue Vielschreiber aktiv",
+          "scan_threshold_per_min": "Schwelle (Writes/min)",
+          "scan_interval_min": "Scan-Intervall (Minuten)",
+          "scan_window_hours": "Messfenster (Stunden)"
+        }
+      }
+    },
+    "abort": { "single_instance_allowed": "Bereits eingerichtet — nur eine Instanz möglich." }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Recorder Throttle — Einstellungen",
+        "description": "Ab welcher Schreibrate ein ungedrosseltes Gerät als neuer Vielschreiber gemeldet wird.",
+        "data": {
+          "scan_enabled": "Scan auf neue Vielschreiber aktiv",
+          "scan_threshold_per_min": "Schwelle (Writes/min)",
+          "scan_interval_min": "Scan-Intervall (Minuten)",
+          "scan_window_hours": "Messfenster (Stunden)"
+        }
+      }
+    }
+  },
+  "issues": {
+    "top_writers_summary": {
+      "title": "{count} ungedrosselte DB-Vielschreiber",
+      "description": "Aktuell schreiben **{count}** Entities ungedrosselt ≥ {threshold}/min in die Datenbank, z. B.: {examples}.\n\nVerwalte sie in der Karte „Recorder Throttle" — pro Entity **drosseln** oder als **akzeptiert** markieren. Sobald alle bearbeitet sind, verschwindet dieser Hinweis."
+    }
+  }
+}
