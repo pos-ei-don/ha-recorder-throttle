@@ -298,7 +298,14 @@ async def _top_writers(
                 "has_statistics": bool(st and st.attributes.get("state_class")),
             }
         )
-    return {"window_hours": hours, "count": len(writers), "writers": writers}
+    stats = hass.data[DOMAIN].get("stats", {})
+    return {
+        "window_hours": hours,
+        "count": len(writers),
+        "writers": writers,
+        # Running counters since the last restart — for "how many writes were prevented".
+        "totals": {"dropped": stats.get("dropped", 0), "passed": stats.get("passed", 0)},
+    }
 
 
 async def _scan_top_writers(hass: HomeAssistant, conf: dict) -> None:

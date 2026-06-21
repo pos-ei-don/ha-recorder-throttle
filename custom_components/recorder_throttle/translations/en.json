@@ -5,7 +5,7 @@
         "title": "Recorder Throttle",
         "description": "Throttles per-entity DB writes (via rec-* labels). Configure the scan for new unthrottled heavy writers here.",
         "data": {
-          "scan_enabled": "Report new heavy writers in Repairs",
+          "scan_enabled": "Create a Repairs notice for new heavy writers",
           "scan_threshold_per_min": "Threshold (writes/min)",
           "scan_interval_min": "Scan interval (minutes)",
           "scan_window_hours": "Measurement window (hours)"
@@ -20,7 +20,7 @@
         "title": "Recorder Throttle — settings",
         "description": "Turn the switch off to never create the Repairs notice. When on, the threshold is the write rate above which an unthrottled entity is reported.",
         "data": {
-          "scan_enabled": "Report new heavy writers in Repairs",
+          "scan_enabled": "Create a Repairs notice for new heavy writers",
           "scan_threshold_per_min": "Threshold (writes/min)",
           "scan_interval_min": "Scan interval (minutes)",
           "scan_window_hours": "Measurement window (hours)"

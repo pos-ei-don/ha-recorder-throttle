@@ -26,6 +26,7 @@ const RT_I18N = {
     loading: "Loading …", no_entries: "No entries.",
     more_info: "More info",
     acc_btn: "✓ acc.", acc_title: "Mark as accepted heavy writer (stop reporting)",
+    all_to: "All to", bulk_confirm: "Throttle all {n} listed entities to {p}?",
   },
   de: {
     header: "Recorder-Drosselung",
@@ -35,6 +36,7 @@ const RT_I18N = {
     loading: "Lade …", no_entries: "Keine Einträge.",
     more_info: "Mehr Infos",
     acc_btn: "✓ akz.", acc_title: "Als akzeptierten Vielschreiber markieren",
+    all_to: "Alle auf", bulk_confirm: "Alle {n} angezeigten Entities auf {p} drosseln?",
   },
 };
 
@@ -175,6 +177,9 @@ class RecorderThrottleCard extends HTMLElement {
       .rt-acc{appearance:none;border:1px solid var(--divider-color,#2c333b);background:transparent;color:var(--secondary-text-color,#9aa7b4);border-radius:8px;padding:5px 8px;cursor:pointer;flex:none}
       .rt-acc.on{background:#143b1f;color:#3fb950;border-color:#1c4a2c}
       .rt-empty{padding:14px 4px;color:var(--secondary-text-color,#9aa7b4)}
+      .rt-bulk{display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--divider-color,#2c333b);margin-bottom:4px;font-size:13px;color:var(--secondary-text-color,#9aa7b4)}
+      .rt-bulk button{appearance:none;border:1px solid var(--divider-color,#2c333b);background:transparent;color:var(--primary-text-color);border-radius:8px;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer}
+      .rt-bulk button.m1:hover{border-color:#1a7f37;color:#3fb950}.rt-bulk button.m5:hover{border-color:#9e6a03;color:#d29922}
     `;
     const tabs = document.createElement("div");
     tabs.className = "rt-tabs";
@@ -209,6 +214,13 @@ class RecorderThrottleCard extends HTMLElement {
     } else if (el.dataset.act === "accept") {
       this._hass.callService("recorder_throttle", "set_accepted", { entity_id: eid, accepted: el.dataset.acc !== "1" });
       setTimeout(() => this._fetch(), 1500);
+    } else if (el.dataset.act === "bulk") {
+      const ids = this._unthrottledRows().map((w) => w.entity_id);
+      if (!ids.length) return;
+      const msg = this._t("bulk_confirm").replace("{n}", ids.length).replace("{p}", this._t("pol_" + el.dataset.k));
+      if (!window.confirm(msg)) return;
+      this._hass.callService("recorder_throttle", "set_policy", { entity_id: ids, policy: el.dataset.k });
+      setTimeout(() => this._fetch(), 1500);
     }
   }
 
@@ -228,7 +240,11 @@ class RecorderThrottleCard extends HTMLElement {
       this._wrap.innerHTML = `<div class="rt-empty">${this._data === null && this._tab === "unthrottled" ? this._t("loading") : this._t("no_entries")}</div>`;
       return;
     }
-    this._wrap.innerHTML = rows
+    const bulk =
+      this._tab === "unthrottled"
+        ? `<div class="rt-bulk"><span>${this._t("all_to")}</span><button data-act="bulk" data-k="1min" class="m1">${this._t("pol_1min")}</button><button data-act="bulk" data-k="5min" class="m5">${this._t("pol_5min")}</button></div>`
+        : "";
+    this._wrap.innerHTML = bulk + rows
       .map((w) => {
         const eid = w.entity_id;
         const pol = w.policy || "full";
@@ -268,5 +284,5 @@ if (!customElements.get("recorder-throttle-card")) {
     description: "Throttle per-entity recorder DB writes (EN/DE)",
     documentationURL: "https://github.com/pos-ei-don/ha-recorder-throttle",
   });
-  console.info("%c recorder-throttle-card %c v0.4.1 ", "background:#1f6feb;color:#fff", "");
+  console.info("%c recorder-throttle-card %c v0.5.0 ", "background:#1f6feb;color:#fff", "");
 }

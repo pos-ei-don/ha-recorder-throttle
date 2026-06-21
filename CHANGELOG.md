@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0
+- Card: bulk action to throttle all listed heavy writers to 1 or 5 minutes at once.
+- Clearer label for the Repairs toggle ("Create a Repairs notice for new heavy writers").
+
 ## 0.4.1
 - Fix the integration options dialog failing to load (500 error, regression in 0.4.0).
 

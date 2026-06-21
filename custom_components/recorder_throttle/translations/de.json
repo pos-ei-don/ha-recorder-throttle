@@ -5,7 +5,7 @@
         "title": "Recorder Throttle",
         "description": "Drosselt DB-Schreibzugriffe pro Entity (über rec-* Labels). Hier konfigurierst du den automatischen Scan auf neue, ungedrosselte Vielschreiber.",
         "data": {
-          "scan_enabled": "Neue Vielschreiber in Reparaturen melden",
+          "scan_enabled": "Reparatur-Meldung für neue Vielschreiber erstellen",
           "scan_threshold_per_min": "Schwelle (Writes/min)",
           "scan_interval_min": "Scan-Intervall (Minuten)",
           "scan_window_hours": "Messfenster (Stunden)"
@@ -20,7 +20,7 @@
         "title": "Recorder Throttle — Einstellungen",
         "description": "Schalter aus = es wird nie ein Reparatur-Hinweis erzeugt. Wenn an: die Schwelle ist die Schreibrate, ab der ein ungedrosseltes Gerät gemeldet wird.",
         "data": {
-          "scan_enabled": "Neue Vielschreiber in Reparaturen melden",
+          "scan_enabled": "Reparatur-Meldung für neue Vielschreiber erstellen",
           "scan_threshold_per_min": "Schwelle (Writes/min)",
           "scan_interval_min": "Scan-Intervall (Minuten)",
           "scan_window_hours": "Messfenster (Stunden)"
