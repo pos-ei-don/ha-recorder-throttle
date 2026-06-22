@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0
+- Settings are now grouped into two sections — "Detection & reporting" and "Auto-throttle" — and every field has a short description.
+- With auto-throttle on, Repairs notices now only surface heavy writers that auto-throttle did not cover (e.g. non-sensor entities), and auto-throttle keeps working even when the Repairs notice is turned off.
+
 ## 0.7.0
 - New option: auto-throttle newly detected heavy writers (checkbox + interval 1/5/10 min) — the integration applies the throttle itself instead of only raising a Repairs notice.
 - Off by default: nothing is auto-throttled until you tick the box in the integration settings. Limited to sensor.* entities (configurable to all) and never touches entities you marked "accepted".

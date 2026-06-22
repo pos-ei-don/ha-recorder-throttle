@@ -342,7 +342,9 @@ async def _scan_top_writers(hass: HomeAssistant, conf: dict) -> None:
                 len(ids), policy, ", ".join(ids[:10]) + (" …" if len(ids) > 10 else ""),
             )
             flagged = [w for w in flagged if w not in in_scope]  # only report what was not auto-handled
-    if flagged:
+    # Repair notice only when reporting is enabled (behaviour b: with auto-throttle on,
+    # this surfaces just the entities auto-throttle did not cover, e.g. non-sensor writers).
+    if flagged and conf.get(CONF_SCAN_ENABLED, True):
         examples = ", ".join(w["name"] for w in flagged[:5]) + (" …" if len(flagged) > 5 else "")
         ir.async_create_issue(
             hass,
@@ -481,8 +483,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _register_services(hass)
 
-    # Top-writer scan -> repair issues
-    if settings.get(CONF_SCAN_ENABLED, True):
+    # Top-writer scan -> auto-throttle and/or repair issues.
+    # Runs if reporting is on OR auto-throttle is on (auto-throttle needs the scan).
+    if settings.get(CONF_SCAN_ENABLED, True) or settings.get(CONF_AUTO_THROTTLE, False):
         interval = timedelta(minutes=int(settings.get(CONF_INTERVAL, DEFAULTS[CONF_INTERVAL])))
 
         @callback

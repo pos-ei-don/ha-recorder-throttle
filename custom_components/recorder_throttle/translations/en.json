@@ -3,15 +3,38 @@
     "step": {
       "user": {
         "title": "Recorder Throttle",
-        "description": "Throttles per-entity DB writes (via rec-* labels). Configure the scan for new unthrottled heavy writers here.",
-        "data": {
-          "scan_enabled": "Create a Repairs notice for new heavy writers",
-          "scan_threshold_per_min": "Threshold (writes/min)",
-          "scan_interval_min": "Scan interval (minutes)",
-          "scan_window_hours": "Measurement window (hours)",
-          "auto_throttle": "Auto-throttle newly detected heavy writers",
-          "auto_throttle_policy": "Auto-throttle interval (1min / 5min / 10min)",
-          "auto_throttle_scope": "Auto-throttle scope (sensor = only sensor.*, all = any entity)"
+        "description": "Throttles per-entity DB writes (via rec-* labels). Configure detection of new unthrottled heavy writers and optional auto-throttling here.",
+        "sections": {
+          "scan": {
+            "name": "Detection & reporting",
+            "description": "Periodically looks for unthrottled entities writing faster than the threshold.",
+            "data": {
+              "scan_enabled": "Create a Repairs notice for new heavy writers",
+              "scan_threshold_per_min": "Threshold (writes/min)",
+              "scan_interval_min": "Scan interval (minutes)",
+              "scan_window_hours": "Measurement window (hours)"
+            },
+            "data_description": {
+              "scan_enabled": "Ignored while auto-throttle is on, except for entities outside the auto-throttle scope.",
+              "scan_threshold_per_min": "Write rate above which an unthrottled entity counts as a heavy writer.",
+              "scan_interval_min": "How often the scan runs.",
+              "scan_window_hours": "Time window used to measure the write rate."
+            }
+          },
+          "auto": {
+            "name": "Auto-throttle",
+            "description": "Let the scan apply a throttle itself instead of only reporting.",
+            "data": {
+              "auto_throttle": "Auto-throttle newly detected heavy writers",
+              "auto_throttle_policy": "Auto-throttle interval",
+              "auto_throttle_scope": "Auto-throttle scope"
+            },
+            "data_description": {
+              "auto_throttle": "When on, new heavy writers are throttled automatically; entities marked accepted are never touched.",
+              "auto_throttle_policy": "Interval applied to auto-throttled entities (1, 5 or 10 minutes).",
+              "auto_throttle_scope": "sensor = only sensor.* entities; all = any entity type."
+            }
+          }
         }
       }
     },
@@ -21,15 +44,37 @@
     "step": {
       "init": {
         "title": "Recorder Throttle — settings",
-        "description": "Turn the switch off to never create the Repairs notice. When on, the threshold is the write rate above which an unthrottled entity is reported.",
-        "data": {
-          "scan_enabled": "Create a Repairs notice for new heavy writers",
-          "scan_threshold_per_min": "Threshold (writes/min)",
-          "scan_interval_min": "Scan interval (minutes)",
-          "scan_window_hours": "Measurement window (hours)",
-          "auto_throttle": "Auto-throttle newly detected heavy writers",
-          "auto_throttle_policy": "Auto-throttle interval (1min / 5min / 10min)",
-          "auto_throttle_scope": "Auto-throttle scope (sensor = only sensor.*, all = any entity)"
+        "sections": {
+          "scan": {
+            "name": "Detection & reporting",
+            "description": "Periodically looks for unthrottled entities writing faster than the threshold.",
+            "data": {
+              "scan_enabled": "Create a Repairs notice for new heavy writers",
+              "scan_threshold_per_min": "Threshold (writes/min)",
+              "scan_interval_min": "Scan interval (minutes)",
+              "scan_window_hours": "Measurement window (hours)"
+            },
+            "data_description": {
+              "scan_enabled": "Ignored while auto-throttle is on, except for entities outside the auto-throttle scope.",
+              "scan_threshold_per_min": "Write rate above which an unthrottled entity counts as a heavy writer.",
+              "scan_interval_min": "How often the scan runs.",
+              "scan_window_hours": "Time window used to measure the write rate."
+            }
+          },
+          "auto": {
+            "name": "Auto-throttle",
+            "description": "Let the scan apply a throttle itself instead of only reporting.",
+            "data": {
+              "auto_throttle": "Auto-throttle newly detected heavy writers",
+              "auto_throttle_policy": "Auto-throttle interval",
+              "auto_throttle_scope": "Auto-throttle scope"
+            },
+            "data_description": {
+              "auto_throttle": "When on, new heavy writers are throttled automatically; entities marked accepted are never touched.",
+              "auto_throttle_policy": "Interval applied to auto-throttled entities (1, 5 or 10 minutes).",
+              "auto_throttle_scope": "sensor = only sensor.* entities; all = any entity type."
+            }
+          }
         }
       }
     }

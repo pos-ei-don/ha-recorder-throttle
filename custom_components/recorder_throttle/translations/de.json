@@ -3,15 +3,38 @@
     "step": {
       "user": {
         "title": "Recorder Throttle",
-        "description": "Drosselt DB-Schreibzugriffe pro Entity (über rec-* Labels). Hier konfigurierst du den automatischen Scan auf neue, ungedrosselte Vielschreiber.",
-        "data": {
-          "scan_enabled": "Reparatur-Meldung für neue Vielschreiber erstellen",
-          "scan_threshold_per_min": "Schwelle (Writes/min)",
-          "scan_interval_min": "Scan-Intervall (Minuten)",
-          "scan_window_hours": "Messfenster (Stunden)",
-          "auto_throttle": "Neu erkannte Vielschreiber automatisch drosseln",
-          "auto_throttle_policy": "Auto-Drossel-Intervall (1min / 5min / 10min)",
-          "auto_throttle_scope": "Auto-Drossel-Umfang (sensor = nur sensor.*, all = alle Entities)"
+        "description": "Drosselt DB-Schreibzugriffe pro Entity (über rec-* Labels). Hier konfigurierst du die Erkennung neuer, ungedrosselter Vielschreiber und optional die automatische Drosselung.",
+        "sections": {
+          "scan": {
+            "name": "Erkennung & Meldung",
+            "description": "Sucht regelmäßig ungedrosselte Entities, die schneller als die Schwelle schreiben.",
+            "data": {
+              "scan_enabled": "Reparatur-Meldung für neue Vielschreiber erstellen",
+              "scan_threshold_per_min": "Schwelle (Writes/min)",
+              "scan_interval_min": "Scan-Intervall (Minuten)",
+              "scan_window_hours": "Messfenster (Stunden)"
+            },
+            "data_description": {
+              "scan_enabled": "Wird ignoriert, solange Auto-Drosselung aktiv ist — außer für Entities außerhalb des Auto-Umfangs.",
+              "scan_threshold_per_min": "Schreibrate, ab der ein ungedrosseltes Gerät als Vielschreiber gilt.",
+              "scan_interval_min": "Wie oft der Scan läuft.",
+              "scan_window_hours": "Zeitfenster zur Messung der Schreibrate."
+            }
+          },
+          "auto": {
+            "name": "Auto-Drosselung",
+            "description": "Lässt den Scan selbst drosseln, statt nur zu melden.",
+            "data": {
+              "auto_throttle": "Neu erkannte Vielschreiber automatisch drosseln",
+              "auto_throttle_policy": "Auto-Drossel-Intervall",
+              "auto_throttle_scope": "Auto-Drossel-Umfang"
+            },
+            "data_description": {
+              "auto_throttle": "Wenn an, werden neue Vielschreiber automatisch gedrosselt; als akzeptiert markierte Entities werden nie angefasst.",
+              "auto_throttle_policy": "Intervall für auto-gedrosselte Entities (1, 5 oder 10 Minuten).",
+              "auto_throttle_scope": "sensor = nur sensor.*-Entities; all = beliebiger Entity-Typ."
+            }
+          }
         }
       }
     },
@@ -21,15 +44,37 @@
     "step": {
       "init": {
         "title": "Recorder Throttle — Einstellungen",
-        "description": "Schalter aus = es wird nie ein Reparatur-Hinweis erzeugt. Wenn an: die Schwelle ist die Schreibrate, ab der ein ungedrosseltes Gerät gemeldet wird.",
-        "data": {
-          "scan_enabled": "Reparatur-Meldung für neue Vielschreiber erstellen",
-          "scan_threshold_per_min": "Schwelle (Writes/min)",
-          "scan_interval_min": "Scan-Intervall (Minuten)",
-          "scan_window_hours": "Messfenster (Stunden)",
-          "auto_throttle": "Neu erkannte Vielschreiber automatisch drosseln",
-          "auto_throttle_policy": "Auto-Drossel-Intervall (1min / 5min / 10min)",
-          "auto_throttle_scope": "Auto-Drossel-Umfang (sensor = nur sensor.*, all = alle Entities)"
+        "sections": {
+          "scan": {
+            "name": "Erkennung & Meldung",
+            "description": "Sucht regelmäßig ungedrosselte Entities, die schneller als die Schwelle schreiben.",
+            "data": {
+              "scan_enabled": "Reparatur-Meldung für neue Vielschreiber erstellen",
+              "scan_threshold_per_min": "Schwelle (Writes/min)",
+              "scan_interval_min": "Scan-Intervall (Minuten)",
+              "scan_window_hours": "Messfenster (Stunden)"
+            },
+            "data_description": {
+              "scan_enabled": "Wird ignoriert, solange Auto-Drosselung aktiv ist — außer für Entities außerhalb des Auto-Umfangs.",
+              "scan_threshold_per_min": "Schreibrate, ab der ein ungedrosseltes Gerät als Vielschreiber gilt.",
+              "scan_interval_min": "Wie oft der Scan läuft.",
+              "scan_window_hours": "Zeitfenster zur Messung der Schreibrate."
+            }
+          },
+          "auto": {
+            "name": "Auto-Drosselung",
+            "description": "Lässt den Scan selbst drosseln, statt nur zu melden.",
+            "data": {
+              "auto_throttle": "Neu erkannte Vielschreiber automatisch drosseln",
+              "auto_throttle_policy": "Auto-Drossel-Intervall",
+              "auto_throttle_scope": "Auto-Drossel-Umfang"
+            },
+            "data_description": {
+              "auto_throttle": "Wenn an, werden neue Vielschreiber automatisch gedrosselt; als akzeptiert markierte Entities werden nie angefasst.",
+              "auto_throttle_policy": "Intervall für auto-gedrosselte Entities (1, 5 oder 10 Minuten).",
+              "auto_throttle_scope": "sensor = nur sensor.*-Entities; all = beliebiger Entity-Typ."
+            }
+          }
         }
       }
     }
