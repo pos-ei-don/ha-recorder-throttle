@@ -63,6 +63,9 @@ def _schema(opts: dict) -> vol.Schema:
                 ),
                 {"collapsed": False},
             ),
+            # Info/help box at the bottom — empty schema, text comes from the section
+            # name/description in the translations. Collapsed so it stays unobtrusive.
+            vol.Optional("info"): section(vol.Schema({}), {"collapsed": True}),
         }
     )
 

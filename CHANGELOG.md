@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.8.1
+- Settings dialog: added an "Info & help" box with a short explanation and a link to the documentation.
+
 ## 0.8.0
 - Settings are now grouped into two sections — "Detection & reporting" and "Auto-throttle" — and every field has a short description.
 - With auto-throttle on, Repairs notices now only surface heavy writers that auto-throttle did not cover (e.g. non-sensor entities), and auto-throttle keeps working even when the Repairs notice is turned off.

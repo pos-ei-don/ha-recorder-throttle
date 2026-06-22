@@ -34,6 +34,10 @@
               "auto_throttle_policy": "Interval applied to auto-throttled entities (1, 5 or 10 minutes).",
               "auto_throttle_scope": "sensor = only sensor.* entities; all = any entity type."
             }
+          },
+          "info": {
+            "name": "Info & help",
+            "description": "Configured entirely via the UI — no YAML needed. Throttles per-entity DB writes using rec-* labels; this dialog controls detection/reporting and the optional auto-throttle. Details, examples & FAQ: https://github.com/pos-ei-don/ha-recorder-throttle"
           }
         }
       }
@@ -74,6 +78,10 @@
               "auto_throttle_policy": "Interval applied to auto-throttled entities (1, 5 or 10 minutes).",
               "auto_throttle_scope": "sensor = only sensor.* entities; all = any entity type."
             }
+          },
+          "info": {
+            "name": "Info & help",
+            "description": "Configured entirely via the UI — no YAML needed. Throttles per-entity DB writes using rec-* labels; this dialog controls detection/reporting and the optional auto-throttle. Details, examples & FAQ: https://github.com/pos-ei-don/ha-recorder-throttle"
           }
         }
       }
