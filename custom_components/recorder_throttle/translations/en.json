@@ -8,7 +8,10 @@
           "scan_enabled": "Create a Repairs notice for new heavy writers",
           "scan_threshold_per_min": "Threshold (writes/min)",
           "scan_interval_min": "Scan interval (minutes)",
-          "scan_window_hours": "Measurement window (hours)"
+          "scan_window_hours": "Measurement window (hours)",
+          "auto_throttle": "Auto-throttle newly detected heavy writers",
+          "auto_throttle_policy": "Auto-throttle interval (1min / 5min / 10min)",
+          "auto_throttle_scope": "Auto-throttle scope (sensor = only sensor.*, all = any entity)"
         }
       }
     },
@@ -23,7 +26,10 @@
           "scan_enabled": "Create a Repairs notice for new heavy writers",
           "scan_threshold_per_min": "Threshold (writes/min)",
           "scan_interval_min": "Scan interval (minutes)",
-          "scan_window_hours": "Measurement window (hours)"
+          "scan_window_hours": "Measurement window (hours)",
+          "auto_throttle": "Auto-throttle newly detected heavy writers",
+          "auto_throttle_policy": "Auto-throttle interval (1min / 5min / 10min)",
+          "auto_throttle_scope": "Auto-throttle scope (sensor = only sensor.*, all = any entity)"
         }
       }
     }

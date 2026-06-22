@@ -39,15 +39,26 @@ CONF_SCAN_ENABLED = "scan_enabled"
 CONF_THRESHOLD = "scan_threshold_per_min"
 CONF_INTERVAL = "scan_interval_min"
 CONF_WINDOW = "scan_window_hours"
+# Auto-throttle: when on, the periodic scan applies a throttle policy to newly
+# detected heavy writers automatically instead of only raising a Repairs notice.
+CONF_AUTO_THROTTLE = "auto_throttle"
+CONF_AUTO_POLICY = "auto_throttle_policy"   # one of "1min" / "5min" / "10min"
+CONF_AUTO_SCOPE = "auto_throttle_scope"     # "sensor" = only sensor.* ; "all" = any domain
 
 DEFAULT_SCAN_ENABLED = True
 DEFAULT_THRESHOLD_PER_MIN = 5.0
 DEFAULT_SCAN_INTERVAL_MIN = 60
 DEFAULT_SCAN_WINDOW_HOURS = 1.0
+DEFAULT_AUTO_THROTTLE = False
+DEFAULT_AUTO_POLICY = "1min"
+DEFAULT_AUTO_SCOPE = "sensor"
 
 DEFAULTS = {
     CONF_SCAN_ENABLED: DEFAULT_SCAN_ENABLED,
     CONF_THRESHOLD: DEFAULT_THRESHOLD_PER_MIN,
     CONF_INTERVAL: DEFAULT_SCAN_INTERVAL_MIN,
     CONF_WINDOW: DEFAULT_SCAN_WINDOW_HOURS,
+    CONF_AUTO_THROTTLE: DEFAULT_AUTO_THROTTLE,
+    CONF_AUTO_POLICY: DEFAULT_AUTO_POLICY,
+    CONF_AUTO_SCOPE: DEFAULT_AUTO_SCOPE,
 }

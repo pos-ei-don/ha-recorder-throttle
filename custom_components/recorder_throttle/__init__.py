@@ -28,6 +28,9 @@ from homeassistant.helpers.typing import ConfigType
 from .const import (
     ACCEPTED_LABEL,
     ACCEPTED_LABEL_META,
+    CONF_AUTO_POLICY,
+    CONF_AUTO_SCOPE,
+    CONF_AUTO_THROTTLE,
     CONF_INTERVAL,
     CONF_SCAN_ENABLED,
     CONF_THRESHOLD,
@@ -326,6 +329,19 @@ async def _scan_top_writers(hass: HomeAssistant, conf: dict) -> None:
         for w in res["writers"]
         if w["per_min"] >= thr and w["entity_id"] not in accepted and policies.get(w["entity_id"]) is None
     ]
+    # Auto-throttle: apply a policy to in-scope new heavy writers instead of nagging.
+    if flagged and conf.get(CONF_AUTO_THROTTLE, DEFAULTS[CONF_AUTO_THROTTLE]):
+        policy = conf.get(CONF_AUTO_POLICY, DEFAULTS[CONF_AUTO_POLICY])
+        scope = conf.get(CONF_AUTO_SCOPE, DEFAULTS[CONF_AUTO_SCOPE])
+        in_scope = [w for w in flagged if scope == "all" or w["entity_id"].startswith("sensor.")]
+        if in_scope:
+            ids = [w["entity_id"] for w in in_scope]
+            await _set_policy(hass, ids, policy)
+            _LOGGER.info(
+                "recorder_throttle: auto-throttled %d new heavy writer(s) to %s: %s",
+                len(ids), policy, ", ".join(ids[:10]) + (" …" if len(ids) > 10 else ""),
+            )
+            flagged = [w for w in flagged if w not in in_scope]  # only report what was not auto-handled
     if flagged:
         examples = ", ".join(w["name"] for w in flagged[:5]) + (" …" if len(flagged) > 5 else "")
         ir.async_create_issue(

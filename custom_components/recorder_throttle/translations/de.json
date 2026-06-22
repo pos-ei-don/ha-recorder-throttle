@@ -8,7 +8,10 @@
           "scan_enabled": "Reparatur-Meldung für neue Vielschreiber erstellen",
           "scan_threshold_per_min": "Schwelle (Writes/min)",
           "scan_interval_min": "Scan-Intervall (Minuten)",
-          "scan_window_hours": "Messfenster (Stunden)"
+          "scan_window_hours": "Messfenster (Stunden)",
+          "auto_throttle": "Neu erkannte Vielschreiber automatisch drosseln",
+          "auto_throttle_policy": "Auto-Drossel-Intervall (1min / 5min / 10min)",
+          "auto_throttle_scope": "Auto-Drossel-Umfang (sensor = nur sensor.*, all = alle Entities)"
         }
       }
     },
@@ -23,7 +26,10 @@
           "scan_enabled": "Reparatur-Meldung für neue Vielschreiber erstellen",
           "scan_threshold_per_min": "Schwelle (Writes/min)",
           "scan_interval_min": "Scan-Intervall (Minuten)",
-          "scan_window_hours": "Messfenster (Stunden)"
+          "scan_window_hours": "Messfenster (Stunden)",
+          "auto_throttle": "Neu erkannte Vielschreiber automatisch drosseln",
+          "auto_throttle_policy": "Auto-Drossel-Intervall (1min / 5min / 10min)",
+          "auto_throttle_scope": "Auto-Drossel-Umfang (sensor = nur sensor.*, all = alle Entities)"
         }
       }
     }

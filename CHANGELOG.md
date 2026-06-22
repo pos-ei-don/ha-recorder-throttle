@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+- New option: auto-throttle newly detected heavy writers (checkbox + interval 1/5/10 min) — the integration applies the throttle itself instead of only raising a Repairs notice.
+- Off by default: nothing is auto-throttled until you tick the box in the integration settings. Limited to sensor.* entities (configurable to all) and never touches entities you marked "accepted".
+
 ## 0.6.0
 - Repairs "Fix" now actually resolves the issue: throttle all reported entities to 1 or 5 minutes, mark as accepted, or stop reporting (menu).
 - The card registers itself as a Lovelace resource for reliable loading.

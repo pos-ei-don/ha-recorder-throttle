@@ -7,6 +7,9 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResu
 from homeassistant.core import callback
 
 from .const import (
+    CONF_AUTO_POLICY,
+    CONF_AUTO_SCOPE,
+    CONF_AUTO_THROTTLE,
     CONF_INTERVAL,
     CONF_SCAN_ENABLED,
     CONF_THRESHOLD,
@@ -29,6 +32,15 @@ def _schema(opts: dict) -> vol.Schema:
             vol.Optional(
                 CONF_WINDOW, default=opts.get(CONF_WINDOW, DEFAULTS[CONF_WINDOW])
             ): vol.All(vol.Coerce(float), vol.Range(min=0, min_included=False)),
+            vol.Optional(
+                CONF_AUTO_THROTTLE, default=opts.get(CONF_AUTO_THROTTLE, DEFAULTS[CONF_AUTO_THROTTLE])
+            ): bool,
+            vol.Optional(
+                CONF_AUTO_POLICY, default=opts.get(CONF_AUTO_POLICY, DEFAULTS[CONF_AUTO_POLICY])
+            ): vol.In(["1min", "5min", "10min"]),
+            vol.Optional(
+                CONF_AUTO_SCOPE, default=opts.get(CONF_AUTO_SCOPE, DEFAULTS[CONF_AUTO_SCOPE])
+            ): vol.In(["sensor", "all"]),
         }
     )
 
