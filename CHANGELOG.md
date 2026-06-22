@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.8.2
+- Fix integration validation: translation strings must not contain URLs — the "Info & help" box now points to the documentation link in the dialog header instead.
+
 ## 0.8.1
 - Settings dialog: added an "Info & help" box with a short explanation and a link to the documentation.
 

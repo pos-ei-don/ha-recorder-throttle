@@ -37,7 +37,7 @@
           },
           "info": {
             "name": "Info & Hilfe",
-            "description": "Wird komplett über die GUI eingerichtet — kein YAML nötig. Drosselt DB-Schreibzugriffe pro Entity über rec-*-Labels; dieser Dialog steuert Erkennung/Meldung und die optionale Auto-Drosselung. Details, Beispiele & FAQ: https://github.com/pos-ei-don/ha-recorder-throttle"
+            "description": "Wird komplett über die GUI eingerichtet — kein YAML nötig. Drosselt DB-Schreibzugriffe pro Entity über rec-*-Labels; dieser Dialog steuert Erkennung/Meldung und die optionale Auto-Drosselung. Details, Beispiele und FAQ über den Dokumentations-Link in der Kopfzeile dieses Dialogs."
           }
         }
       }
@@ -81,7 +81,7 @@
           },
           "info": {
             "name": "Info & Hilfe",
-            "description": "Wird komplett über die GUI eingerichtet — kein YAML nötig. Drosselt DB-Schreibzugriffe pro Entity über rec-*-Labels; dieser Dialog steuert Erkennung/Meldung und die optionale Auto-Drosselung. Details, Beispiele & FAQ: https://github.com/pos-ei-don/ha-recorder-throttle"
+            "description": "Wird komplett über die GUI eingerichtet — kein YAML nötig. Drosselt DB-Schreibzugriffe pro Entity über rec-*-Labels; dieser Dialog steuert Erkennung/Meldung und die optionale Auto-Drosselung. Details, Beispiele und FAQ über den Dokumentations-Link in der Kopfzeile dieses Dialogs."
           }
         }
       }

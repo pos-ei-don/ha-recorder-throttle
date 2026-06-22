@@ -37,7 +37,7 @@
           },
           "info": {
             "name": "Info & help",
-            "description": "Configured entirely via the UI — no YAML needed. Throttles per-entity DB writes using rec-* labels; this dialog controls detection/reporting and the optional auto-throttle. Details, examples & FAQ: https://github.com/pos-ei-don/ha-recorder-throttle"
+            "description": "Configured entirely via the UI — no YAML needed. Throttles per-entity DB writes using rec-* labels; this dialog controls detection/reporting and the optional auto-throttle. For details, examples and FAQ, use the documentation link in this dialog header."
           }
         }
       }
@@ -81,7 +81,7 @@
           },
           "info": {
             "name": "Info & help",
-            "description": "Configured entirely via the UI — no YAML needed. Throttles per-entity DB writes using rec-* labels; this dialog controls detection/reporting and the optional auto-throttle. Details, examples & FAQ: https://github.com/pos-ei-don/ha-recorder-throttle"
+            "description": "Configured entirely via the UI — no YAML needed. Throttles per-entity DB writes using rec-* labels; this dialog controls detection/reporting and the optional auto-throttle. For details, examples and FAQ, use the documentation link in this dialog header."
           }
         }
       }
