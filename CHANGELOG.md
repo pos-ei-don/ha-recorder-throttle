@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.8.3
+- Fix the card's version number shown in the browser console — it had drifted behind the integration version; now it always stays in sync.
+
 ## 0.8.2
 - Fix integration validation: translation strings must not contain URLs — the "Info & help" box now points to the documentation link in the dialog header instead.
 
