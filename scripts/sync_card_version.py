@@ -23,18 +23,27 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = REPO_ROOT / "custom_components" / "recorder_throttle" / "manifest.json"
 CARD_JS = REPO_ROOT / "custom_components" / "recorder_throttle" / "recorder-throttle-card.js"
-BANNER_RE = re.compile(r'(console\.info\("%c recorder-throttle-card %c )v[\d.]+( ")')
+# Version is captured directly (group 2) so callers never need to slice the match by hand.
+BANNER_RE = re.compile(r'(console\.info\("%c recorder-throttle-card %c\s*)v([\d.]+)(\s*"\s*,)')
 
 
 def manifest_version() -> str:
-    return json.loads(MANIFEST.read_text())["version"]
+    return json.loads(MANIFEST.read_text(encoding="utf-8"))["version"]
 
 
-def card_banner_version() -> str:
-    m = BANNER_RE.search(CARD_JS.read_text())
-    if not m:
+def find_banner_match(text: str) -> re.Match:
+    """Return the single banner match, or exit loudly if there isn't exactly one.
+
+    A silent `search()` would only ever see the first hit and could hide drift
+    if a second banner line ever creeps in; a bare `sub()` would then rewrite
+    every occurrence without anyone noticing there were several.
+    """
+    matches = list(BANNER_RE.finditer(text))
+    if not matches:
         sys.exit(f"Could not find the console.info version banner in {CARD_JS}")
-    return CARD_JS.read_text()[m.start():m.end()].split("v", 1)[1].rsplit(" ", 1)[0]
+    if len(matches) > 1:
+        sys.exit(f"Found {len(matches)} version banners in {CARD_JS}, expected exactly 1 - fix manually.")
+    return matches[0]
 
 
 def main() -> int:
@@ -45,7 +54,8 @@ def main() -> int:
     args = ap.parse_args()
 
     target = manifest_version()
-    current = card_banner_version()
+    card_text = CARD_JS.read_text(encoding="utf-8")
+    current = find_banner_match(card_text).group(2)
 
     if args.check:
         if current != target:
@@ -59,8 +69,8 @@ def main() -> int:
     if current == target:
         print(f"[OK] Already in sync (v{target}), nothing to do.")
         return 0
-    new_content = BANNER_RE.sub(rf"\g<1>v{target}\g<2>", CARD_JS.read_text())
-    CARD_JS.write_text(new_content)
+    new_content = BANNER_RE.sub(rf"\g<1>v{target}\g<3>", card_text, count=1)
+    CARD_JS.write_text(new_content, encoding="utf-8")
     print(f"[FIXED] Card banner: v{current} -> v{target}")
     return 0
 
