@@ -16,6 +16,14 @@ A Home Assistant custom integration that **throttles the recorder's database wri
 
 Home Assistant only offers all-or-nothing per entity (`include`/`exclude`). This fills the gap: keep a **coarse history instead of none**, at a fraction of the write volume. Fewer `states` rows means a **smaller database on disk**, less SSD wear, lower query load, and **faster nightly purges** (the recorder has far fewer rows to delete).
 
+> **Easy to try, easy to undo.** You can switch throttling off globally at any time with a single
+> service call — instantly, without a restart and without uninstalling, and the setting sticks across
+> restarts (see [Disabling throttling](#disabling-throttling)). That makes it safe to evaluate on a
+> live system: if you don't like what you see, one call puts recording back exactly as it was.
+> Removing the integration cleans up after itself — the dashboard resource for the card and the stored
+> state go with it. Only the `rec-*` labels remain, because those are your throttling choices rather
+> than our bookkeeping; delete them under Settings → Areas & Labels if you want nothing left at all.
+
 ![Recorder Throttle — management card](docs/card.png)
 
 ## Features
@@ -75,10 +83,10 @@ The card is localized: it shows German when Home Assistant's language is German,
 | `recorder_throttle.set_policy` | `entity`, `policy`: `full` / `off` / `1min` / `5min` / `10min` | Sets the level for one or more entities (writes the matching `rec-*` label). |
 | `recorder_throttle.set_accepted` | `entity`, `accepted`: bool | Marks a heavy writer as reviewed so it stops being reported. |
 | `recorder_throttle.top_writers` | `hours`, `limit`, `exclude_accepted` | Returns the busiest writers plus `totals` (dropped / passed). Response data. |
-| `recorder_throttle.set_enabled` | `enabled`: bool | **Kill switch** — see below. |
+| `recorder_throttle.set_enabled` | `enabled`: bool | Enables or **disables throttling** globally — see below. |
 | `recorder_throttle.rebuild` | — | Recomputes the policies from the current labels. |
 
-### Turning throttling off (kill switch)
+### Disabling throttling
 
 `recorder_throttle.set_enabled` with `enabled: false` turns throttling off globally and takes effect
 **immediately** — no restart, no uninstall. Every state change is recorded again exactly as if the
@@ -91,14 +99,27 @@ data:
   enabled: false
 ```
 
-> **Known limitation (as of v0.8.3):** the switch is **not persisted**. After a Home Assistant restart
-> throttling is active again. If you need it to stay off across a restart, remove the `rec-*` labels or
-> disable the integration under Settings → Devices & Services. A persisted switch — plus a `switch`
-> entity and a button on the card — is planned.
+The state **survives a restart** (since v1.0.0): if you switch throttling off, it stays off until you
+switch it back on. On startup the integration logs a warning while throttling is disabled, so it does
+not stay off unnoticed.
 
 If the recorder hook cannot be installed at all — for example after a Home Assistant update that changes
 recorder internals — the integration **fails open**: nothing is throttled, everything is recorded, and a
 repair notice is raised.
+
+## Database backends
+
+The throttle hooks into the recorder **above** the database layer, so it does not care which backend you
+use. Verified end-to-end with Home Assistant 2026.8:
+
+| Backend | Throttling | `top_writers` |
+|---|---|---|
+| SQLite (Home Assistant default) | ✅ | ✅ |
+| PostgreSQL | ✅ | ✅ |
+| MariaDB / MySQL | ✅ | ✅ |
+
+In each case a throttled entity dropped from ~30 writes/min to 1/min while untouched entities kept
+recording at their normal rate.
 
 ## Caveats
 - Don't throttle **energy / `total_increasing`** or statistics-critical measurements too hard. Entities **without** statistics (text/binary) lose everything at "off" — the card warns with `no backup`.

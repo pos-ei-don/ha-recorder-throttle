@@ -62,3 +62,10 @@ DEFAULTS = {
     CONF_AUTO_POLICY: DEFAULT_AUTO_POLICY,
     CONF_AUTO_SCOPE: DEFAULT_AUTO_SCOPE,
 }
+
+# Whether throttling is enabled (recorder_throttle.set_enabled) is persisted here so it
+# survives a restart. Deliberately NOT stored in the config entry options: an options
+# update triggers the entry's update listener and reloads the whole integration — the
+# last thing you want when you are switching throttling off in a hurry.
+STORAGE_KEY = "recorder_throttle"
+STORAGE_VERSION = 1

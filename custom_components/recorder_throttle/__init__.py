@@ -23,6 +23,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -40,6 +41,8 @@ from .const import (
     LABEL_INTERVALS,
     LABEL_META,
     POLICY_TO_NAME,
+    STORAGE_KEY,
+    STORAGE_VERSION,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -164,6 +167,20 @@ def _install_hook(hass: HomeAssistant) -> bool:
         monotonic = time.monotonic
 
         def wrapped(event):  # runs synchronously in the recorder thread
+            """Throttle one state_changed event, or hand it to the recorder unchanged.
+
+            Read this before drawing conclusions from the ``return None`` branches below:
+            an event is dropped **only** when its entity carries an explicit policy. The
+            default is *record*, never *discard*.
+
+              * throttling disabled       -> passthrough (``orig(event)``)
+              * entity has no policy      -> passthrough  <- the vast majority of events
+              * policy is "off" (iv == 0) -> drop
+              * still inside the interval -> drop
+
+            Only the last two return ``None``. Reading them in isolation has already led
+            to the wrong conclusion once ("it discards everything"), hence this note.
+            """
             if not data["enabled"]:
                 return orig(event)
             eid = event.data.get("entity_id")
@@ -442,6 +459,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     data["active"] = True
     entry.async_on_unload(lambda: data.update({"active": False}))
 
+    # Restore whether throttling is enabled (see const.STORAGE_KEY for why this is not
+    # kept in the entry options). Default is enabled.
+    store = data.get("store") or Store(hass, STORAGE_VERSION, STORAGE_KEY)
+    data["store"] = store
+    saved = await store.async_load() or {}
+    data["enabled"] = bool(saved.get("enabled", True))
+    if not data["enabled"]:
+        _LOGGER.warning(
+            "recorder_throttle: throttling is DISABLED — it was switched off earlier and that "
+            "setting survives restarts. Everything is being recorded. Call "
+            "recorder_throttle.set_enabled with enabled: true to switch throttling back on"
+        )
+
     await _register_card(hass)
     _ensure_labels(hass)
     _rebuild_policies(hass)
@@ -504,6 +534,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Clean up what setup created, so removing the integration leaves no leftovers.
+
+    Removed here: the Lovelace resource for the bundled card (it would otherwise point at
+    a URL this integration no longer serves and show up as a broken dashboard resource),
+    and the stored enable/disable state.
+
+    Deliberately *kept*: the ``rec-*`` labels. They carry the user's throttling choices,
+    not our bookkeeping — silently deleting them would throw away that work. They are
+    plain labels and can be removed in Settings -> Areas & Labels if desired.
+    """
+    try:
+        lovelace = hass.data.get("lovelace")
+        resources = getattr(lovelace, "resources", None) if lovelace is not None else None
+        if resources is not None and hasattr(resources, "async_delete_item"):
+            if hasattr(resources, "loaded") and not resources.loaded:
+                await resources.async_load()
+            for item in list(resources.async_items()):
+                if (item.get("url") or "").split("?")[0] == CARD_URL:
+                    await resources.async_delete_item(item["id"])
+                    _LOGGER.info("recorder_throttle: removed Lovelace resource %s", CARD_URL)
+                    break
+    except Exception:  # noqa: BLE001 — removal must never fail the uninstall
+        _LOGGER.debug("recorder_throttle: could not remove the Lovelace resource", exc_info=True)
+
+    try:
+        await Store(hass, STORAGE_VERSION, STORAGE_KEY).async_remove()
+    except Exception:  # noqa: BLE001
+        _LOGGER.debug("recorder_throttle: could not remove the stored state", exc_info=True)
+
+
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload — all async_on_unload callbacks (hook restore, listeners, scan) run automatically."""
     return True
@@ -524,8 +585,12 @@ def _register_services(hass: HomeAssistant) -> None:
         await _set_policy(hass, call.data["entity_id"], call.data["policy"])
 
     async def _svc_set_enabled(call: ServiceCall) -> None:
-        hass.data[DOMAIN]["enabled"] = bool(call.data["enabled"])
-        _LOGGER.info("recorder_throttle: enabled=%s", hass.data[DOMAIN]["enabled"])
+        data = hass.data[DOMAIN]
+        data["enabled"] = bool(call.data["enabled"])
+        store = data.get("store")
+        if store is not None:
+            await store.async_save({"enabled": data["enabled"]})
+        _LOGGER.info("recorder_throttle: enabled=%s (persisted across restarts)", data["enabled"])
 
     async def _svc_rebuild(_call: ServiceCall) -> None:
         _rebuild_policies(hass)

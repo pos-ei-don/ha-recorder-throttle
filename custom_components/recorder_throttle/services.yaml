@@ -64,7 +64,7 @@ top_writers:
         boolean: {}
 
 set_enabled:
-  name: Throttling on/off (kill switch)
+  name: Enable or disable throttling
   description: Enable or disable throttling globally without a restart (off = everything is recorded again).
   fields:
     enabled:
