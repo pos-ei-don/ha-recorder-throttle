@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0
+- Disabling throttling (`recorder_throttle.set_enabled` with `enabled: false`) now survives a restart: it stays off until you switch it back on. While throttling is disabled, a warning is logged on every start so it does not stay off unnoticed.
+- Removing the integration now cleans up after itself — the dashboard resource for the bundled card and the stored state are removed. Your `rec-*` labels are kept.
+- Documented the services with their parameters, how to disable throttling, and verified database support — SQLite, PostgreSQL and MariaDB/MySQL all tested with Home Assistant 2026.8.
+
 ## 0.8.3
 - Fix the card's version number shown in the browser console — it had drifted behind the integration version; now it always stays in sync.
 
