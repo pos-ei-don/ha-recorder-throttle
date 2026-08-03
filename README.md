@@ -70,10 +70,35 @@ The card is localized: it shows German when Home Assistant's language is German,
 | Measurement window (h) | 1 | period for the rate measurement |
 
 ## Services
-- `recorder_throttle.set_policy` (entity, policy: full/off/1min/5min/10min)
-- `recorder_throttle.set_accepted` (entity, accepted: bool)
-- `recorder_throttle.top_writers` (hours, limit, exclude_accepted) → response data
-- `recorder_throttle.set_enabled` (kill switch) · `recorder_throttle.rebuild`
+| Service | Parameters | What it does |
+|---|---|---|
+| `recorder_throttle.set_policy` | `entity`, `policy`: `full` / `off` / `1min` / `5min` / `10min` | Sets the level for one or more entities (writes the matching `rec-*` label). |
+| `recorder_throttle.set_accepted` | `entity`, `accepted`: bool | Marks a heavy writer as reviewed so it stops being reported. |
+| `recorder_throttle.top_writers` | `hours`, `limit`, `exclude_accepted` | Returns the busiest writers plus `totals` (dropped / passed). Response data. |
+| `recorder_throttle.set_enabled` | `enabled`: bool | **Kill switch** — see below. |
+| `recorder_throttle.rebuild` | — | Recomputes the policies from the current labels. |
+
+### Turning throttling off (kill switch)
+
+`recorder_throttle.set_enabled` with `enabled: false` turns throttling off globally and takes effect
+**immediately** — no restart, no uninstall. Every state change is recorded again exactly as if the
+integration were not installed. The integration stays loaded and your labels are preserved, so you can
+switch back on at any time.
+
+```yaml
+action: recorder_throttle.set_enabled
+data:
+  enabled: false
+```
+
+> **Known limitation (as of v0.8.3):** the switch is **not persisted**. After a Home Assistant restart
+> throttling is active again. If you need it to stay off across a restart, remove the `rec-*` labels or
+> disable the integration under Settings → Devices & Services. A persisted switch — plus a `switch`
+> entity and a button on the card — is planned.
+
+If the recorder hook cannot be installed at all — for example after a Home Assistant update that changes
+recorder internals — the integration **fails open**: nothing is throttled, everything is recorded, and a
+repair notice is raised.
 
 ## Caveats
 - Don't throttle **energy / `total_increasing`** or statistics-critical measurements too hard. Entities **without** statistics (text/binary) lose everything at "off" — the card warns with `no backup`.
