@@ -20,6 +20,7 @@ const RT_POL = [
 ];
 const RT_LABEL_POL = { rec_off: "off", rec_10min: "10min", rec_5min: "5min", rec_1min: "1min" };
 const RT_TAB_IDS = ["unthrottled", "throttled", "accepted"];
+const RT_POLL_MS = 120000;
 
 const RT_I18N = {
   en: {
@@ -55,6 +56,37 @@ const RT_I18N = {
 };
 
 class RecorderThrottleCard extends HTMLElement {
+  constructor() {
+    super();
+    // Never replace the DOM between pointerdown and click: HA hands out a new `hass` on every
+    // state change, and a re-render in that gap swallowed clicks on large installations (#2).
+    this._endInteraction = () => {
+      clearTimeout(this._interactionTimer);
+      // Keep the guard through all synchronous click handlers.
+      this._interactionTimer = setTimeout(() => {
+        this._interacting = false;
+        if (this._renderPending) this._render();
+      }, 0);
+    };
+    this._pointerUp = (e) => {
+      const path = e.composedPath();
+      if (!path.includes(this) || path.some((node) => node.disabled)) {
+        this._endInteraction();
+      } else {
+        // An inside release normally produces a click; if none follows, don't stay frozen.
+        clearTimeout(this._interactionTimer);
+        this._interactionTimer = setTimeout(this._endInteraction, 1000);
+      }
+    };
+    this._visibilityChanged = () => this._updatePolling();
+    this.addEventListener("pointerdown", () => {
+      clearTimeout(this._interactionTimer);
+      this._interacting = true;
+    }, true);
+    this.addEventListener("click", this._endInteraction, true);
+    this.addEventListener("dragend", this._endInteraction, true);
+  }
+
   setConfig(config) {
     this._config = config;
     this._hours = config.hours || 1;
@@ -67,6 +99,7 @@ class RecorderThrottleCard extends HTMLElement {
     this._tab = "unthrottled";
     this._data = null;
     this._built = false;
+    this._shownStates = null;
     this.innerHTML = "";
   }
 
@@ -79,11 +112,20 @@ class RecorderThrottleCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     if (!this._built) this._build();
-    if (!this._fetched) {
-      this._fetched = true;
-      this._fetch();
+    this._updatePolling();
+    // Re-render only if something the card shows changed: the entity registry (labels live
+    // there), the language, or a state object of a row on the visible page (#2).
+    const localeKey = JSON.stringify([hass.language, hass.locale]);
+    if (!this._shownStates || this._renderedEntities !== hass.entities || this._renderedLocale !== localeKey) {
+      this._render();
+      return;
     }
-    this._render();
+    for (const [eid, state] of this._shownStates) {
+      if (hass.states[eid] !== state) {
+        this._render();
+        break;
+      }
+    }
   }
 
   _lang() {
@@ -97,18 +139,64 @@ class RecorderThrottleCard extends HTMLElement {
   }
 
   connectedCallback() {
-    if (!this._timer) this._timer = setInterval(() => this._fetch(), 120000);
+    document.addEventListener("visibilitychange", this._visibilityChanged);
+    window.addEventListener("pointerup", this._pointerUp, true);
+    window.addEventListener("pointercancel", this._endInteraction, true);
+    window.addEventListener("blur", this._endInteraction);
+    this._intersecting = !("IntersectionObserver" in window);
+    if (!this._observer && "IntersectionObserver" in window) {
+      this._observer = new IntersectionObserver((entries) => {
+        if (!this.isConnected) return;
+        this._intersecting = entries[entries.length - 1].isIntersecting;
+        this._updatePolling();
+      });
+      this._observer.observe(this);
+    }
+    this._updatePolling();
+    if (this._renderPending) this._render();
   }
   disconnectedCallback() {
-    if (this._timer) {
+    document.removeEventListener("visibilitychange", this._visibilityChanged);
+    window.removeEventListener("pointerup", this._pointerUp, true);
+    window.removeEventListener("pointercancel", this._endInteraction, true);
+    window.removeEventListener("blur", this._endInteraction);
+    if (this._observer) this._observer.disconnect();
+    this._observer = null;
+    this._intersecting = false;
+    clearInterval(this._timer);
+    this._timer = null;
+    clearTimeout(this._interactionTimer);
+    this._interacting = false;
+  }
+
+  // top_writers is a heavy recorder query: poll only while the card is connected and visible
+  // (tab in the foreground, card on screen); catch up once when it becomes visible again (#2).
+  _canPoll() {
+    return this.isConnected && document.visibilityState === "visible" && this._intersecting;
+  }
+  _updatePolling() {
+    if (!this._canPoll()) {
       clearInterval(this._timer);
       this._timer = null;
+      return;
     }
+    if (!this._timer) this._timer = setInterval(() => this._fetch(), RT_POLL_MS);
+    if (this._refreshPending || !this._lastFetch || Date.now() - this._lastFetch >= RT_POLL_MS) this._fetch();
+  }
+  _refetchAfterAction() {
+    setTimeout(() => {
+      // Kept as pending if the card is hidden or another fetch is running.
+      this._refreshPending = true;
+      this._fetch();
+    }, 1500);
   }
 
   async _fetch() {
-    if (!this._hass || this._fetching) return;
+    if (!this._hass || this._fetching || !this._canPoll()) return;
     this._fetching = true;
+    this._refreshPending = false;
+    // Also rate-limits failed attempts; otherwise every hass update could retry.
+    this._lastFetch = Date.now();
     try {
       const call = (extra) => this._hass.callWS({
         type: "call_service",
@@ -127,6 +215,7 @@ class RecorderThrottleCard extends HTMLElement {
       /* building / no perms */
     } finally {
       this._fetching = false;
+      if (this._refreshPending) this._fetch();
     }
   }
 
@@ -154,30 +243,45 @@ class RecorderThrottleCard extends HTMLElement {
   _unthrottledRows() {
     return (this._data || []).filter((w) => (w.policy || "full") === "full").map((w) => ({ ...w }));
   }
-  _byLabel(predicate) {
-    const ents = this._hass.entities || {};
-    const rm = this._rateMap();
-    const out = [];
-    for (const eid in ents) {
-      const labels = ents[eid].labels || [];
-      const pol = this._polFromLabels(labels);
-      const acc = labels.includes("rec_accepted");
-      if (!predicate(pol, acc)) continue;
-      out.push({ entity_id: eid, name: this._name(eid), policy: pol, accepted: acc, per_min: rm[eid], has_statistics: this._stat(eid) });
+  // Label membership only changes with the entity registry: cache it per hass.entities object.
+  _labelLists() {
+    const entities = this._hass && this._hass.entities;
+    if (!this._labelCache || this._labelEntities !== entities) {
+      const lists = { throttled: [], accepted: [] };
+      const ents = entities || {};
+      for (const eid in ents) {
+        const labels = ents[eid].labels || [];
+        const policy = this._polFromLabels(labels);
+        const accepted = labels.includes("rec_accepted");
+        const row = { entity_id: eid, policy, accepted };
+        if (policy !== "full") lists.throttled.push(row);
+        if (accepted) lists.accepted.push(row);
+      }
+      this._labelEntities = entities;
+      this._labelCache = lists;
     }
-    return out;
+    return this._labelCache;
+  }
+  _byLabel(tab) {
+    const rm = this._rateMap();
+    return this._labelLists()[tab].map((row) => ({
+      ...row,
+      name: this._name(row.entity_id),
+      per_min: rm[row.entity_id],
+      has_statistics: this._stat(row.entity_id),
+    }));
   }
   _sortRows(rows) {
     const key = this._sort === "friendly_name" ? "name" : "entity_id";
     return rows.slice().sort((a, b) => String(a[key]).localeCompare(String(b[key])));
   }
   _throttledRows(ignoreFilter) {
-    const rows = this._byLabel((pol) => pol !== "full");
+    const rows = this._byLabel("throttled");
     const filtered = this._hideAccepted && !ignoreFilter ? rows.filter((w) => !w.accepted) : rows;
     return this._sortRows(filtered);
   }
   _acceptedRows() {
-    return this._sortRows(this._byLabel((pol, acc) => acc));
+    return this._sortRows(this._byLabel("accepted"));
   }
   _rowsFor(tab) {
     if (tab === "throttled") return this._throttledRows();
@@ -262,17 +366,17 @@ class RecorderThrottleCard extends HTMLElement {
       this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: eid }, bubbles: true, composed: true }));
     } else if (el.dataset.act === "policy") {
       this._hass.callService("recorder_throttle", "set_policy", { entity_id: eid, policy: el.dataset.k });
-      setTimeout(() => this._fetch(), 1500);
+      this._refetchAfterAction();
     } else if (el.dataset.act === "accept") {
       this._hass.callService("recorder_throttle", "set_accepted", { entity_id: eid, accepted: el.dataset.acc !== "1" });
-      setTimeout(() => this._fetch(), 1500);
+      this._refetchAfterAction();
     } else if (el.dataset.act === "bulk") {
       const ids = this._unthrottledRows().filter((w) => w.in_registry !== false).map((w) => w.entity_id);
       if (!ids.length) return;
       const msg = this._t("bulk_confirm").replace("{n}", ids.length).replace("{p}", this._t("pol_" + el.dataset.k));
       if (!window.confirm(msg)) return;
       this._hass.callService("recorder_throttle", "set_policy", { entity_id: ids, policy: el.dataset.k });
-      setTimeout(() => this._fetch(), 1500);
+      this._refetchAfterAction();
     } else if (el.dataset.act === "sort") {
       if (el.dataset.k !== this._sort) {
         this._sort = el.dataset.k;
@@ -325,15 +429,25 @@ class RecorderThrottleCard extends HTMLElement {
 
   _render() {
     if (!this._wrap) return;
+    if (this._interacting) {
+      this._renderPending = true;
+      return;
+    }
+    this._renderPending = false;
+    this._renderedEntities = this._hass.entities;
+    this._renderedLocale = JSON.stringify([this._hass.language, this._hass.locale]);
+    this._shownStates = new Map();
+    this.querySelector("ha-card").header = this._config.title || this._t("header");
+    const labels = this._labelLists();
     const counts = {
       unthrottled: this._unthrottledRows().length,
-      throttled: this._throttledRows().length,
-      accepted: this._acceptedRows().length,
+      throttled: this._hideAccepted ? labels.throttled.filter((w) => !w.accepted).length : labels.throttled.length,
+      accepted: labels.accepted.length,
     };
     // When the Throttled filter is hiding accepted entities, show "shown/total" in the
     // tab label instead of just the filtered count — otherwise it looks like entities
     // went missing rather than just being filtered out of view.
-    const throttledLabel = this._hideAccepted ? `${counts.throttled}/${this._throttledRows(true).length}` : counts.throttled;
+    const throttledLabel = this._hideAccepted ? `${counts.throttled}/${labels.throttled.length}` : counts.throttled;
     this._tabsEl.innerHTML = RT_TAB_IDS.map(
       (id) => `<button data-tab="${id}" class="${id === this._tab ? "on" : ""}">${this._t("tab_" + id)} (${id === "throttled" ? throttledLabel : counts[id]})</button>`
     ).join("");
@@ -352,6 +466,7 @@ class RecorderThrottleCard extends HTMLElement {
       return;
     }
     const { rows: pageRows, page, pages } = this._paginate(rows, this._tab);
+    for (const row of pageRows) this._shownStates.set(row.entity_id, this._hass.states[row.entity_id]);
     const pager = pages > 1 ? this._renderPager(page, pages) : "";
     const bulk =
       this._tab === "unthrottled"
