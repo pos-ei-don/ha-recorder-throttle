@@ -7,6 +7,7 @@
 - Card: after throttling from the *Unthrottled* tab, a short notice confirms it ("30 entities set to 1m → now in the Throttled tab"). The list refills with the next heavy writers, which previously made it look as if nothing had happened.
 - Card: the *Unthrottled* tab only lists entities that write more than once a minute. The mildest level keeps one value per minute, so slower entities aren't slowed down by any level and are not heavy writers; offering them (including "All to …") only led to pointless throttling.
 - Card: the *Unthrottled* tab says when its list is cut at `limit`: the count reads "30+" and the hint "the 30 heaviest … (there may be more)"; a shorter list is the complete one ("All 12 …"). Previously "Unthrottled (30)" suggested there were only 30.
+- The card is now loaded as `recorder-throttle-card.js?v=<version>` (an existing dashboard resource is updated on start). Browsers cache the card by its address, so after an update they kept running the old card until the cache was cleared.
 - Card: the *Unthrottled* tab no longer highlights "Full" (everything there is unthrottled by definition, so it read like a selection) and explains in one line what the list shows.
 
 ## 1.2

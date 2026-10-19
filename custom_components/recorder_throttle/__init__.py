@@ -491,11 +491,23 @@ async def _register_card(hass: HomeAssistant) -> None:
     try:
         from homeassistant.components.frontend import add_extra_js_url
 
-        add_extra_js_url(hass, CARD_URL)
+        add_extra_js_url(hass, await _card_url(hass))
         data["card_registered"] = True
         _LOGGER.debug("recorder_throttle: card loaded via add_extra_js_url")
     except Exception:  # noqa: BLE001
         _LOGGER.warning("recorder_throttle: could not load the Lovelace card", exc_info=True)
+
+
+async def _card_url(hass: HomeAssistant) -> str:
+    """Card URL with the integration version as query: browsers cache the module by URL, so without it
+    they keep running the old card after an update until the user clears the cache."""
+    try:
+        from homeassistant.loader import async_get_integration
+
+        version = (await async_get_integration(hass, DOMAIN)).version
+    except Exception:  # noqa: BLE001 — a missing version must not block the card
+        version = None
+    return f"{CARD_URL}?v={version}" if version else CARD_URL
 
 
 async def _register_lovelace_resource(hass: HomeAssistant) -> bool:
@@ -507,11 +519,15 @@ async def _register_lovelace_resource(hass: HomeAssistant) -> bool:
             return False  # not available / YAML mode -> caller falls back
         if hasattr(resources, "loaded") and not resources.loaded:
             await resources.async_load()
+        url = await _card_url(hass)
         for item in resources.async_items():
             if (item.get("url") or "").split("?")[0] == CARD_URL:
-                return True  # already registered
-        await resources.async_create_item({"res_type": "module", "url": CARD_URL})
-        _LOGGER.info("recorder_throttle: registered Lovelace resource %s", CARD_URL)
+                if item.get("url") != url:  # registered by an older version: point it at this one
+                    await resources.async_update_item(item["id"], {"res_type": "module", "url": url})
+                    _LOGGER.info("recorder_throttle: updated Lovelace resource to %s", url)
+                return True
+        await resources.async_create_item({"res_type": "module", "url": url})
+        _LOGGER.info("recorder_throttle: registered Lovelace resource %s", url)
         return True
     except Exception:  # noqa: BLE001
         _LOGGER.debug("recorder_throttle: lovelace resource registration unavailable", exc_info=True)
