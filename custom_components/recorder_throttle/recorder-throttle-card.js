@@ -21,6 +21,9 @@ const RT_POL = [
 const RT_LABEL_POL = { rec_off: "off", rec_10min: "10min", rec_5min: "5min", rec_1min: "1min" };
 const RT_TAB_IDS = ["unthrottled", "throttled", "accepted"];
 const RT_POLL_MS = 120000;
+// The mildest throttle keeps one value per minute: an entity writing at most once a minute is not
+// slowed down by any level, so it is no heavy writer and not listed (user feedback 2026-10-19).
+const RT_MIN_RATE = 1;
 
 const RT_I18N = {
   en: {
@@ -33,7 +36,10 @@ const RT_I18N = {
     acc_btn: "✓ acc.", acc_title: "Mark as accepted heavy writer (stop reporting)",
     all_to: "All to", bulk_confirm: "Throttle all {n} entities in this list (all pages) to {p}?",
     not_throttleable: "not throttleable",
-    unthrottled_hint: "Heaviest writers that are not throttled yet — throttled ones move to the Throttled tab.",
+    unthrottled_hint_top: "The {n} heaviest writers {t} that are not throttled yet (there may be more — card option limit). Only entities writing more than once a minute are listed: slower ones aren't slowed down by any level. Throttled ones move to the Throttled tab.",
+    unthrottled_hint_all: "All {n} writers {t} that write more than once a minute and are not throttled yet (slower ones aren't slowed down by any level). Throttled ones move to the Throttled tab.",
+    no_heavy: "No unthrottled entity writes more than once a minute.",
+    window_1: "of the last hour", window_n: "of the last {h} hours",
     set_done: "{n} set to {p} → now in the Throttled tab", set_done_one: "1 entity", set_done_many: "{n} entities",
     not_throttleable_title: "No unique ID: this entity is not in the entity registry, so it can't carry labels. Use the recorder's exclude: configuration instead.",
     sort_label: "Sort:", sort_entity_id: "Entity ID", sort_friendly_name: "Friendly name",
@@ -50,7 +56,10 @@ const RT_I18N = {
     acc_btn: "✓ akz.", acc_title: "Als akzeptierten Vielschreiber markieren",
     all_to: "Alle auf", bulk_confirm: "Alle {n} Entities dieser Liste (alle Seiten) auf {p} drosseln?",
     not_throttleable: "nicht drosselbar",
-    unthrottled_hint: "Die stärksten noch ungedrosselten Schreiber – gedrosselte wechseln in den Tab „Gedrosselt“.",
+    unthrottled_hint_top: "Die {n} stärksten noch ungedrosselten Schreiber {t} (ggf. gibt es weitere – Kartenoption limit). Gelistet wird nur, wer öfter als einmal pro Minute schreibt – seltenere bremst keine Stufe. Gedrosselte wechseln in den Tab „Gedrosselt“.",
+    unthrottled_hint_all: "Alle {n} noch ungedrosselten Schreiber {t}, die öfter als einmal pro Minute schreiben (seltenere bremst keine Stufe). Gedrosselte wechseln in den Tab „Gedrosselt“.",
+    no_heavy: "Keine ungedrosselte Entity schreibt öfter als einmal pro Minute.",
+    window_1: "der letzten Stunde", window_n: "der letzten {h} Stunden",
     set_done: "{n} auf {p} gesetzt → jetzt im Tab „Gedrosselt“", set_done_one: "1 Entity", set_done_many: "{n} Entities",
     not_throttleable_title: "Keine eindeutige ID: Die Entity steht nicht in der Entity-Registry und kann daher keine Labels tragen. Stattdessen exclude: in der Recorder-Konfiguration verwenden.",
     sort_label: "Sortieren:", sort_entity_id: "Entity-ID", sort_friendly_name: "Anzeigename",
@@ -245,7 +254,9 @@ class RecorderThrottleCard extends HTMLElement {
   }
 
   _unthrottledRows() {
-    return (this._data || []).filter((w) => (w.policy || "full") === "full").map((w) => ({ ...w }));
+    return (this._data || [])
+      .filter((w) => (w.policy || "full") === "full" && (w.per_min || 0) > RT_MIN_RATE)
+      .map((w) => ({ ...w }));
   }
   // Label membership only changes with the entity registry: cache it per hass.entities object.
   _labelLists() {
@@ -468,9 +479,16 @@ class RecorderThrottleCard extends HTMLElement {
     // When the Throttled filter is hiding accepted entities, show "shown/total" in the
     // tab label instead of just the filtered count — otherwise it looks like entities
     // went missing rather than just being filtered out of view.
+    // top_writers stops at `limit`: a full answer means there are probably more, so say "30+" instead of
+    // pretending the list is complete; fewer rows than the limit is the complete list (user feedback 2026-10-19).
+    // top_writers is sorted by rate: if its slowest row still writes more than once a minute, the
+    // answer was cut at `limit` before reaching the slow ones.
+    const data = this._data || [];
+    const truncated = data.length >= this._limit && (data[data.length - 1].per_min || 0) > RT_MIN_RATE;
+    const unthrottledLabel = truncated ? `${counts.unthrottled}+` : counts.unthrottled;
     const throttledLabel = this._hideAccepted ? `${counts.throttled}/${labels.throttled.length}` : counts.throttled;
     this._tabsEl.innerHTML = RT_TAB_IDS.map(
-      (id) => `<button data-tab="${id}" class="${id === this._tab ? "on" : ""}">${this._t("tab_" + id)} (${id === "throttled" ? throttledLabel : counts[id]})</button>`
+      (id) => `<button data-tab="${id}" class="${id === this._tab ? "on" : ""}">${this._t("tab_" + id)} (${id === "throttled" ? throttledLabel : id === "unthrottled" ? unthrottledLabel : counts[id]})</button>`
     ).join("");
 
     const toolbarParts = [];
@@ -484,7 +502,7 @@ class RecorderThrottleCard extends HTMLElement {
       // Keep the toolbar visible even with zero rows: with the Throttled tab's filter
       // set to "Unaccepted", zero rows just means everything's been reviewed — losing
       // the control here would trap the user unable to switch back to "All".
-      this._wrap.innerHTML = `${notice}${toolbar}<div class="rt-empty">${this._data === null && this._tab === "unthrottled" ? this._t("loading") : this._t("no_entries")}</div>`;
+      this._wrap.innerHTML = `${notice}${toolbar}<div class="rt-empty">${this._tab !== "unthrottled" ? this._t("no_entries") : this._data === null ? this._t("loading") : this._t("no_heavy")}</div>`;
       return;
     }
     const { rows: pageRows, page, pages } = this._paginate(rows, this._tab);
@@ -492,7 +510,7 @@ class RecorderThrottleCard extends HTMLElement {
     const pager = pages > 1 ? this._renderPager(page, pages) : "";
     const bulk =
       this._tab === "unthrottled"
-        ? `<div class="rt-hint">${this._t("unthrottled_hint")}</div><div class="rt-bulk"><span>${this._t("all_to")}</span><button data-act="bulk" data-k="1min" class="m1">${this._t("pol_1min")}</button><button data-act="bulk" data-k="5min" class="m5">${this._t("pol_5min")}</button></div>`
+        ? `<div class="rt-hint">${this._t(truncated ? "unthrottled_hint_top" : "unthrottled_hint_all").replace("{n}", rows.length).replace("{t}", Number(this._hours) === 1 ? this._t("window_1") : this._t("window_n").replace("{h}", this._hours))}</div><div class="rt-bulk"><span>${this._t("all_to")}</span><button data-act="bulk" data-k="1min" class="m1">${this._t("pol_1min")}</button><button data-act="bulk" data-k="5min" class="m5">${this._t("pol_5min")}</button></div>`
         : "";
     // Reserve a full page's worth of height on the rows container (from a previously
     // measured row) so a shorter last page doesn't shrink the card and trigger a
