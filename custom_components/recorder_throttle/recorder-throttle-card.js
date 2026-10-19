@@ -22,7 +22,7 @@ const RT_LABEL_POL = { rec_off: "off", rec_10min: "10min", rec_5min: "5min", rec
 const RT_TAB_IDS = ["unthrottled", "throttled", "accepted"];
 const RT_POLL_MS = 120000;
 // The mildest throttle keeps one value per minute: an entity writing at most once a minute is not
-// slowed down by any level, so it is no heavy writer and not listed (user feedback 2026-10-19).
+// slowed down by it, so it is no heavy writer and not listed (user feedback 2026-10-19).
 const RT_MIN_RATE = 1;
 
 const RT_I18N = {
@@ -36,11 +36,11 @@ const RT_I18N = {
     acc_btn: "✓ acc.", acc_title: "Mark as accepted heavy writer (stop reporting)",
     all_to: "All to", bulk_confirm: "Throttle all {n} entities in this list (all pages) to {p}?",
     not_throttleable: "not throttleable",
-    unthrottled_hint_top: "The {n} heaviest writers {t} that are not throttled yet (there may be more — card option limit). Only entities writing more than once a minute are listed: slower ones aren't slowed down by any level. Throttled ones move to the Throttled tab.",
-    unthrottled_hint_all: "All {n} writers {t} that write more than once a minute and are not throttled yet (slower ones aren't slowed down by any level). Throttled ones move to the Throttled tab.",
+    unthrottled_hint_top: "The {n} heaviest writers {t} that are not throttled yet (there may be more — card option limit). Only entities writing more than once a minute are listed: the 1-minute level wouldn't slow slower ones down at all. Throttled ones move to the Throttled tab.",
+    unthrottled_hint_all: "All {n} writers {t} that write more than once a minute and are not throttled yet (the 1-minute level wouldn't slow slower ones down at all). Throttled ones move to the Throttled tab.",
     no_heavy: "No unthrottled entity writes more than once a minute.",
     window_1: "of the last hour", window_n: "of the last {h} hours",
-    set_done: "{n} set to {p} → now in the Throttled tab", set_done_one: "1 entity", set_done_many: "{n} entities",
+    set_done: "{n} set to {p} → now in the Throttled tab", set_failed: "Could not change the throttling: {e}", set_done_one: "1 entity", set_done_many: "{n} entities",
     not_throttleable_title: "No unique ID: this entity is not in the entity registry, so it can't carry labels. Use the recorder's exclude: configuration instead.",
     sort_label: "Sort:", sort_entity_id: "Entity ID", sort_friendly_name: "Friendly name",
     page_prev: "Previous page", page_next: "Next page", page_info: "Page {page} of {pages}",
@@ -56,11 +56,11 @@ const RT_I18N = {
     acc_btn: "✓ akz.", acc_title: "Als akzeptierten Vielschreiber markieren",
     all_to: "Alle auf", bulk_confirm: "Alle {n} Entities dieser Liste (alle Seiten) auf {p} drosseln?",
     not_throttleable: "nicht drosselbar",
-    unthrottled_hint_top: "Die {n} stärksten noch ungedrosselten Schreiber {t} (ggf. gibt es weitere – Kartenoption limit). Gelistet wird nur, wer öfter als einmal pro Minute schreibt – seltenere bremst keine Stufe. Gedrosselte wechseln in den Tab „Gedrosselt“.",
-    unthrottled_hint_all: "Alle {n} noch ungedrosselten Schreiber {t}, die öfter als einmal pro Minute schreiben (seltenere bremst keine Stufe). Gedrosselte wechseln in den Tab „Gedrosselt“.",
+    unthrottled_hint_top: "Die {n} stärksten noch ungedrosselten Schreiber {t} (ggf. gibt es weitere – Kartenoption limit). Gelistet wird nur, wer öfter als einmal pro Minute schreibt – seltenere würde die 1-min-Stufe gar nicht bremsen. Gedrosselte wechseln in den Tab „Gedrosselt“.",
+    unthrottled_hint_all: "Alle {n} noch ungedrosselten Schreiber {t}, die öfter als einmal pro Minute schreiben (seltenere würde die 1-min-Stufe gar nicht bremsen). Gedrosselte wechseln in den Tab „Gedrosselt“.",
     no_heavy: "Keine ungedrosselte Entity schreibt öfter als einmal pro Minute.",
     window_1: "der letzten Stunde", window_n: "der letzten {h} Stunden",
-    set_done: "{n} auf {p} gesetzt → jetzt im Tab „Gedrosselt“", set_done_one: "1 Entity", set_done_many: "{n} Entities",
+    set_done: "{n} auf {p} gesetzt → jetzt im Tab „Gedrosselt“", set_failed: "Drosselung nicht geändert: {e}", set_done_one: "1 Entity", set_done_many: "{n} Entities",
     not_throttleable_title: "Keine eindeutige ID: Die Entity steht nicht in der Entity-Registry und kann daher keine Labels tragen. Stattdessen exclude: in der Recorder-Konfiguration verwenden.",
     sort_label: "Sortieren:", sort_entity_id: "Entity-ID", sort_friendly_name: "Anzeigename",
     page_prev: "Vorherige Seite", page_next: "Nächste Seite", page_info: "Seite {page} von {pages}",
@@ -136,7 +136,16 @@ class RecorderThrottleCard extends HTMLElement {
     for (const [eid, state] of this._shownStates) {
       if (hass.states[eid] !== state) {
         this._render();
-        break;
+        return;
+      }
+    }
+    // Sorted by name, a rename on another page can move an entity onto this one: compare names only.
+    if (this._shownNames) {
+      for (const [eid, name] of this._shownNames) {
+        if (this._name(eid) !== name) {
+          this._render();
+          return;
+        }
       }
     }
   }
@@ -152,6 +161,8 @@ class RecorderThrottleCard extends HTMLElement {
   }
 
   connectedCallback() {
+    // A custom element is inline by default: without a box the IntersectionObserver may not track the card.
+    if (!this.style.display) this.style.display = "block";
     document.addEventListener("visibilitychange", this._visibilityChanged);
     window.addEventListener("pointerup", this._pointerUp, true);
     window.addEventListener("pointercancel", this._endInteraction, true);
@@ -341,6 +352,7 @@ class RecorderThrottleCard extends HTMLElement {
       .rt-acc{appearance:none;border:1px solid var(--divider-color,#2c333b);background:transparent;color:var(--secondary-text-color,#9aa7b4);border-radius:8px;padding:5px 8px;cursor:pointer;flex:none}
       .rt-acc.on{background:#143b1f;color:#3fb950;border-color:#1c4a2c}
       .rt-empty{padding:14px 4px;color:var(--secondary-text-color,#9aa7b4)}
+      .rt-notice.err{color:#f85149;background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.35)}
       .rt-hint{font-size:12px;color:var(--secondary-text-color,#9aa7b4);padding:4px 0 2px}
       .rt-notice{font-size:13px;color:#3fb950;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.35);border-radius:8px;padding:6px 10px;margin:4px 0}
       .rt-bulk{display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--divider-color,#2c333b);margin-bottom:4px;font-size:13px;color:var(--secondary-text-color,#9aa7b4)}
@@ -382,8 +394,8 @@ class RecorderThrottleCard extends HTMLElement {
     if (el.dataset.act === "info") {
       this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: eid }, bubbles: true, composed: true }));
     } else if (el.dataset.act === "policy") {
-      this._hass.callService("recorder_throttle", "set_policy", { entity_id: eid, policy: el.dataset.k });
-      if (this._tab === "unthrottled" && el.dataset.k !== "full") this._notify(1, el.dataset.k);
+      const done = this._hass.callService("recorder_throttle", "set_policy", { entity_id: eid, policy: el.dataset.k });
+      if (this._tab === "unthrottled" && el.dataset.k !== "full") this._afterCall(done, 1, el.dataset.k);
       this._refetchAfterAction();
     } else if (el.dataset.act === "accept") {
       this._hass.callService("recorder_throttle", "set_accepted", { entity_id: eid, accepted: el.dataset.acc !== "1" });
@@ -393,8 +405,8 @@ class RecorderThrottleCard extends HTMLElement {
       if (!ids.length) return;
       const msg = this._t("bulk_confirm").replace("{n}", ids.length).replace("{p}", this._t("pol_" + el.dataset.k));
       if (!window.confirm(msg)) return;
-      this._hass.callService("recorder_throttle", "set_policy", { entity_id: ids, policy: el.dataset.k });
-      this._notify(ids.length, el.dataset.k);
+      const done = this._hass.callService("recorder_throttle", "set_policy", { entity_id: ids, policy: el.dataset.k });
+      this._afterCall(done, ids.length, el.dataset.k);
       this._refetchAfterAction();
     } else if (el.dataset.act === "sort") {
       if (el.dataset.k !== this._sort) {
@@ -419,9 +431,18 @@ class RecorderThrottleCard extends HTMLElement {
 
   // The Unthrottled list refills with the next heavy writers after throttling, so without a
   // notice it looks as if nothing happened (user feedback 2026-10-19).
-  _notify(n, pol) {
+  _afterCall(done, n, pol) {
+    Promise.resolve(done).then(
+      () => this._notify(n, pol),
+      (err) => this._notify(n, pol, (err && err.message) || String(err))
+    );
+  }
+  _notify(n, pol, error) {
     const who = n === 1 ? this._t("set_done_one") : this._t("set_done_many").replace("{n}", n);
-    this._notice = this._t("set_done").replace("{n}", who).replace("{p}", this._t("pol_" + pol));
+    this._notice = error
+      ? this._t("set_failed").replace("{e}", error)
+      : this._t("set_done").replace("{n}", who).replace("{p}", this._t("pol_" + pol));
+    this._noticeErr = !!error;
     clearTimeout(this._noticeTimer);
     this._noticeTimer = setTimeout(() => {
       this._notice = null;
@@ -469,6 +490,7 @@ class RecorderThrottleCard extends HTMLElement {
     this._renderedEntities = this._hass.entities;
     this._renderedLocale = JSON.stringify([this._hass.language, this._hass.locale]);
     this._shownStates = new Map();
+    this._shownNames = null;
     this.querySelector("ha-card").header = this._config.title || this._t("header");
     const labels = this._labelLists();
     const counts = {
@@ -496,7 +518,7 @@ class RecorderThrottleCard extends HTMLElement {
     if (this._tab === "throttled") toolbarParts.push(this._renderAcceptedFilter());
     const toolbar = toolbarParts.length ? `<div class="rt-sort">${toolbarParts.join("")}</div>` : "";
 
-    const notice = this._notice ? `<div class="rt-notice">${this._esc(this._notice)}</div>` : "";
+    const notice = this._notice ? `<div class="rt-notice${this._noticeErr ? " err" : ""}">${this._esc(this._notice)}</div>` : "";
     const rows = this._rowsFor(this._tab);
     if (!rows.length) {
       // Keep the toolbar visible even with zero rows: with the Throttled tab's filter
@@ -507,6 +529,8 @@ class RecorderThrottleCard extends HTMLElement {
     }
     const { rows: pageRows, page, pages } = this._paginate(rows, this._tab);
     for (const row of pageRows) this._shownStates.set(row.entity_id, this._hass.states[row.entity_id]);
+    this._shownNames =
+      this._sort === "friendly_name" && this._tab !== "unthrottled" ? new Map(rows.map((w) => [w.entity_id, w.name])) : null;
     const pager = pages > 1 ? this._renderPager(page, pages) : "";
     const bulk =
       this._tab === "unthrottled"
