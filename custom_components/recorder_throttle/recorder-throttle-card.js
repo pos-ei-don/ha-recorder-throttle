@@ -30,7 +30,9 @@ const RT_I18N = {
     loading: "Loading …", no_entries: "No entries.",
     more_info: "More info",
     acc_btn: "✓ acc.", acc_title: "Mark as accepted heavy writer (stop reporting)",
-    all_to: "All to", bulk_confirm: "Throttle all {n} listed entities to {p}?",
+    all_to: "All to", bulk_confirm: "Throttle all {n} entities in this list (all pages) to {p}?",
+    not_throttleable: "not throttleable",
+    not_throttleable_title: "No unique ID: this entity is not in the entity registry, so it can't carry labels. Use the recorder's exclude: configuration instead.",
     sort_label: "Sort:", sort_entity_id: "Entity ID", sort_friendly_name: "Friendly name",
     page_prev: "Previous page", page_next: "Next page", page_info: "Page {page} of {pages}",
     filter_label: "Show:", filter_all: "All", filter_unaccepted: "Unaccepted",
@@ -43,7 +45,9 @@ const RT_I18N = {
     loading: "Lade …", no_entries: "Keine Einträge.",
     more_info: "Mehr Infos",
     acc_btn: "✓ akz.", acc_title: "Als akzeptierten Vielschreiber markieren",
-    all_to: "Alle auf", bulk_confirm: "Alle {n} angezeigten Entities auf {p} drosseln?",
+    all_to: "Alle auf", bulk_confirm: "Alle {n} Entities dieser Liste (alle Seiten) auf {p} drosseln?",
+    not_throttleable: "nicht drosselbar",
+    not_throttleable_title: "Keine eindeutige ID: Die Entity steht nicht in der Entity-Registry und kann daher keine Labels tragen. Stattdessen exclude: in der Recorder-Konfiguration verwenden.",
     sort_label: "Sortieren:", sort_entity_id: "Entity-ID", sort_friendly_name: "Anzeigename",
     page_prev: "Vorherige Seite", page_next: "Nächste Seite", page_info: "Seite {page} von {pages}",
     filter_label: "Anzeigen:", filter_all: "Alle", filter_unaccepted: "Nicht akzeptiert",
@@ -54,8 +58,8 @@ class RecorderThrottleCard extends HTMLElement {
   setConfig(config) {
     this._config = config;
     this._hours = config.hours || 1;
-    this._limit = config.limit || 30;
-    this._pageSize = config.page_size || 50;
+    this._limit = RecorderThrottleCard._posInt(config.limit, 30);
+    this._pageSize = RecorderThrottleCard._posInt(config.page_size, 50);
     this._sort = config.sort === "friendly_name" ? "friendly_name" : "entity_id";
     this._page = { unthrottled: 1, throttled: 1, accepted: 1 };
     this._hideAccepted = false;
@@ -64,6 +68,12 @@ class RecorderThrottleCard extends HTMLElement {
     this._data = null;
     this._built = false;
     this.innerHTML = "";
+  }
+
+  static _posInt(v, dflt) {
+    // YAML may hand over "50" as a string; "50" + 50 would concatenate when paging.
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n > 0 ? n : dflt;
   }
 
   set hass(hass) {
@@ -195,7 +205,7 @@ class RecorderThrottleCard extends HTMLElement {
       .rt-tabs button.on{background:var(--primary-color,#1f6feb);color:#fff;border-color:transparent;font-weight:600}
       .rt-wrap{padding:2px 12px 12px}
       .rt-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--divider-color,#2c333b)}
-      .rt-row:last-child{border-bottom:none}
+      .rt-row:last-child{border-bottom-color:transparent}
       .rt-info{flex:1;min-width:0;cursor:pointer}
       .rt-info:hover .rt-name{color:var(--primary-color,#1f6feb);text-decoration:underline}
       .rt-name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -215,8 +225,9 @@ class RecorderThrottleCard extends HTMLElement {
       .rt-bulk{display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--divider-color,#2c333b);margin-bottom:4px;font-size:13px;color:var(--secondary-text-color,#9aa7b4)}
       .rt-bulk button{appearance:none;border:1px solid var(--divider-color,#2c333b);background:transparent;color:var(--primary-text-color);border-radius:8px;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer}
       .rt-bulk button.m1:hover{border-color:#1a7f37;color:#3fb950}.rt-bulk button.m5:hover{border-color:#9e6a03;color:#d29922}
-      .rt-sort{display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--divider-color,#2c333b);margin-bottom:4px;font-size:13px;color:var(--secondary-text-color,#9aa7b4)}
+      .rt-sort{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--divider-color,#2c333b);margin-bottom:4px;font-size:13px;color:var(--secondary-text-color,#9aa7b4)}
       .rt-sort .rt-seg button.on{background:var(--primary-color,#1f6feb)}
+      .rt-na{flex:none;font-size:12px;color:var(--secondary-text-color,#9aa7b4);border:1px dashed var(--divider-color,#2c333b);border-radius:8px;padding:5px 9px;cursor:help}
       .rt-pager{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 0 2px}
       .rt-pager button{appearance:none;border:1px solid var(--divider-color,#2c333b);background:transparent;color:var(--primary-text-color);border-radius:8px;padding:4px 10px;font:inherit;font-size:14px;cursor:pointer;line-height:1}
       .rt-pager button:disabled{opacity:.35;cursor:default}
@@ -256,7 +267,7 @@ class RecorderThrottleCard extends HTMLElement {
       this._hass.callService("recorder_throttle", "set_accepted", { entity_id: eid, accepted: el.dataset.acc !== "1" });
       setTimeout(() => this._fetch(), 1500);
     } else if (el.dataset.act === "bulk") {
-      const ids = this._unthrottledRows().map((w) => w.entity_id);
+      const ids = this._unthrottledRows().filter((w) => w.in_registry !== false).map((w) => w.entity_id);
       if (!ids.length) return;
       const msg = this._t("bulk_confirm").replace("{n}", ids.length).replace("{p}", this._t("pol_" + el.dataset.k));
       if (!window.confirm(msg)) return;
@@ -362,13 +373,18 @@ class RecorderThrottleCard extends HTMLElement {
           (p) => `<button data-act="policy" data-eid="${eid}" data-k="${p.k}" class="${p.c}${p.k === pol ? " on" : ""}">${this._t("pol_" + p.k)}</button>`
         ).join("");
         const acc = !!w.accepted;
+        // No unique ID -> not in the entity registry -> no labels -> set_policy/set_accepted can't work (#3).
+        const actions =
+          w.in_registry === false
+            ? `<span class="rt-na" title="${this._esc(this._t("not_throttleable_title"))}">${this._t("not_throttleable")}</span>`
+            : `<div class="rt-seg">${seg}</div>
+          <button class="rt-acc${acc ? " on" : ""}" data-act="accept" data-eid="${eid}" data-acc="${acc ? "1" : "0"}" title="${this._t("acc_title")}">${this._t("acc_btn")}</button>`;
         return `<div class="rt-row">
           <div class="rt-info" data-act="info" data-eid="${eid}" title="${this._t("more_info")}">
             <div class="rt-name">${this._esc(this._name(eid, w.name))}</div>
             <div class="rt-sub"><span class="rt-rate">${rate}</span> · ${eid}${statBadge}</div>
           </div>
-          <div class="rt-seg">${seg}</div>
-          <button class="rt-acc${acc ? " on" : ""}" data-act="accept" data-eid="${eid}" data-acc="${acc ? "1" : "0"}" title="${this._t("acc_title")}">${this._t("acc_btn")}</button>
+          ${actions}
         </div>`;
       })
       .join("");
@@ -395,5 +411,5 @@ if (!customElements.get("recorder-throttle-card")) {
     description: "Throttle per-entity recorder DB writes (EN/DE)",
     documentationURL: "https://github.com/pos-ei-don/ha-recorder-throttle",
   });
-  console.info("%c recorder-throttle-card %c v1.1 ", "background:#1f6feb;color:#fff", "");
+  console.info("%c recorder-throttle-card %c v1.2 ", "background:#1f6feb;color:#fff", "");
 }

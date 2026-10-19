@@ -71,6 +71,7 @@ The card is localized: it shows German when Home Assistant's language is German,
 - Click an entity name for the more-info dialog.
 - Throttled/Accepted tabs: toggle the sort order (Entity ID / Friendly name) and page through results with the pager at the bottom — handy on installations with large numbers of entities.
 - Without the card: set the label directly on the entity (Settings → entity → Labels).
+- Entities without a unique ID (not in the entity registry, e.g. many YAML-defined entities) can't carry labels and are shown as **not throttleable**; exclude them with the recorder's own `exclude:` configuration if needed.
 
 ## Settings (Devices & Services → Configure)
 | Option | Default | Purpose |
