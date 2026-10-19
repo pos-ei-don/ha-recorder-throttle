@@ -33,6 +33,8 @@ const RT_I18N = {
     acc_btn: "✓ acc.", acc_title: "Mark as accepted heavy writer (stop reporting)",
     all_to: "All to", bulk_confirm: "Throttle all {n} entities in this list (all pages) to {p}?",
     not_throttleable: "not throttleable",
+    unthrottled_hint: "Heaviest writers that are not throttled yet — throttled ones move to the Throttled tab.",
+    set_done: "{n} set to {p} → now in the Throttled tab", set_done_one: "1 entity", set_done_many: "{n} entities",
     not_throttleable_title: "No unique ID: this entity is not in the entity registry, so it can't carry labels. Use the recorder's exclude: configuration instead.",
     sort_label: "Sort:", sort_entity_id: "Entity ID", sort_friendly_name: "Friendly name",
     page_prev: "Previous page", page_next: "Next page", page_info: "Page {page} of {pages}",
@@ -48,6 +50,8 @@ const RT_I18N = {
     acc_btn: "✓ akz.", acc_title: "Als akzeptierten Vielschreiber markieren",
     all_to: "Alle auf", bulk_confirm: "Alle {n} Entities dieser Liste (alle Seiten) auf {p} drosseln?",
     not_throttleable: "nicht drosselbar",
+    unthrottled_hint: "Die stärksten noch ungedrosselten Schreiber – gedrosselte wechseln in den Tab „Gedrosselt“.",
+    set_done: "{n} auf {p} gesetzt → jetzt im Tab „Gedrosselt“", set_done_one: "1 Entity", set_done_many: "{n} Entities",
     not_throttleable_title: "Keine eindeutige ID: Die Entity steht nicht in der Entity-Registry und kann daher keine Labels tragen. Stattdessen exclude: in der Recorder-Konfiguration verwenden.",
     sort_label: "Sortieren:", sort_entity_id: "Entity-ID", sort_friendly_name: "Anzeigename",
     page_prev: "Vorherige Seite", page_next: "Nächste Seite", page_info: "Seite {page} von {pages}",
@@ -326,6 +330,8 @@ class RecorderThrottleCard extends HTMLElement {
       .rt-acc{appearance:none;border:1px solid var(--divider-color,#2c333b);background:transparent;color:var(--secondary-text-color,#9aa7b4);border-radius:8px;padding:5px 8px;cursor:pointer;flex:none}
       .rt-acc.on{background:#143b1f;color:#3fb950;border-color:#1c4a2c}
       .rt-empty{padding:14px 4px;color:var(--secondary-text-color,#9aa7b4)}
+      .rt-hint{font-size:12px;color:var(--secondary-text-color,#9aa7b4);padding:4px 0 2px}
+      .rt-notice{font-size:13px;color:#3fb950;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.35);border-radius:8px;padding:6px 10px;margin:4px 0}
       .rt-bulk{display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--divider-color,#2c333b);margin-bottom:4px;font-size:13px;color:var(--secondary-text-color,#9aa7b4)}
       .rt-bulk button{appearance:none;border:1px solid var(--divider-color,#2c333b);background:transparent;color:var(--primary-text-color);border-radius:8px;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer}
       .rt-bulk button.m1:hover{border-color:#1a7f37;color:#3fb950}.rt-bulk button.m5:hover{border-color:#9e6a03;color:#d29922}
@@ -366,6 +372,7 @@ class RecorderThrottleCard extends HTMLElement {
       this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: eid }, bubbles: true, composed: true }));
     } else if (el.dataset.act === "policy") {
       this._hass.callService("recorder_throttle", "set_policy", { entity_id: eid, policy: el.dataset.k });
+      if (this._tab === "unthrottled" && el.dataset.k !== "full") this._notify(1, el.dataset.k);
       this._refetchAfterAction();
     } else if (el.dataset.act === "accept") {
       this._hass.callService("recorder_throttle", "set_accepted", { entity_id: eid, accepted: el.dataset.acc !== "1" });
@@ -376,6 +383,7 @@ class RecorderThrottleCard extends HTMLElement {
       const msg = this._t("bulk_confirm").replace("{n}", ids.length).replace("{p}", this._t("pol_" + el.dataset.k));
       if (!window.confirm(msg)) return;
       this._hass.callService("recorder_throttle", "set_policy", { entity_id: ids, policy: el.dataset.k });
+      this._notify(ids.length, el.dataset.k);
       this._refetchAfterAction();
     } else if (el.dataset.act === "sort") {
       if (el.dataset.k !== this._sort) {
@@ -396,6 +404,19 @@ class RecorderThrottleCard extends HTMLElement {
       this._page[this._tab] = el.dataset.dir === "next" ? cur + 1 : Math.max(1, cur - 1);
       this._render();
     }
+  }
+
+  // The Unthrottled list refills with the next heavy writers after throttling, so without a
+  // notice it looks as if nothing happened (user feedback 2026-10-19).
+  _notify(n, pol) {
+    const who = n === 1 ? this._t("set_done_one") : this._t("set_done_many").replace("{n}", n);
+    this._notice = this._t("set_done").replace("{n}", who).replace("{p}", this._t("pol_" + pol));
+    clearTimeout(this._noticeTimer);
+    this._noticeTimer = setTimeout(() => {
+      this._notice = null;
+      this._render();
+    }, 8000);
+    this._render();
   }
 
   _renderSortToggle() {
@@ -457,12 +478,13 @@ class RecorderThrottleCard extends HTMLElement {
     if (this._tab === "throttled") toolbarParts.push(this._renderAcceptedFilter());
     const toolbar = toolbarParts.length ? `<div class="rt-sort">${toolbarParts.join("")}</div>` : "";
 
+    const notice = this._notice ? `<div class="rt-notice">${this._esc(this._notice)}</div>` : "";
     const rows = this._rowsFor(this._tab);
     if (!rows.length) {
       // Keep the toolbar visible even with zero rows: with the Throttled tab's filter
       // set to "Unaccepted", zero rows just means everything's been reviewed — losing
       // the control here would trap the user unable to switch back to "All".
-      this._wrap.innerHTML = `${toolbar}<div class="rt-empty">${this._data === null && this._tab === "unthrottled" ? this._t("loading") : this._t("no_entries")}</div>`;
+      this._wrap.innerHTML = `${notice}${toolbar}<div class="rt-empty">${this._data === null && this._tab === "unthrottled" ? this._t("loading") : this._t("no_entries")}</div>`;
       return;
     }
     const { rows: pageRows, page, pages } = this._paginate(rows, this._tab);
@@ -470,13 +492,15 @@ class RecorderThrottleCard extends HTMLElement {
     const pager = pages > 1 ? this._renderPager(page, pages) : "";
     const bulk =
       this._tab === "unthrottled"
-        ? `<div class="rt-bulk"><span>${this._t("all_to")}</span><button data-act="bulk" data-k="1min" class="m1">${this._t("pol_1min")}</button><button data-act="bulk" data-k="5min" class="m5">${this._t("pol_5min")}</button></div>`
+        ? `<div class="rt-hint">${this._t("unthrottled_hint")}</div><div class="rt-bulk"><span>${this._t("all_to")}</span><button data-act="bulk" data-k="1min" class="m1">${this._t("pol_1min")}</button><button data-act="bulk" data-k="5min" class="m5">${this._t("pol_5min")}</button></div>`
         : "";
     // Reserve a full page's worth of height on the rows container (from a previously
     // measured row) so a shorter last page doesn't shrink the card and trigger a
     // Lovelace masonry reflow that jumps the card on screen (only matters once paging
     // is actually in effect for this tab; a single-page tab is naturally stable).
     const rowsStyle = pages > 1 && this._rowH ? ` style="min-height:${this._rowH * this._pageSize}px"` : "";
+    // Everything in the Unthrottled tab is "Full" by definition: highlighting it read like a choice.
+    const markNone = this._tab === "unthrottled";
     const rowsHtml = pageRows
       .map((w) => {
         const eid = w.entity_id;
@@ -485,7 +509,7 @@ class RecorderThrottleCard extends HTMLElement {
         const stat = w.has_statistics;
         const statBadge = stat === undefined ? "" : `<span class="rt-stat ${stat ? "y" : "n"}">${stat ? this._t("stats_kept") : this._t("no_backup")}</span>`;
         const seg = RT_POL.map(
-          (p) => `<button data-act="policy" data-eid="${eid}" data-k="${p.k}" class="${p.c}${p.k === pol ? " on" : ""}">${this._t("pol_" + p.k)}</button>`
+          (p) => `<button data-act="policy" data-eid="${eid}" data-k="${p.k}" class="${p.c}${p.k === pol && !markNone ? " on" : ""}">${this._t("pol_" + p.k)}</button>`
         ).join("");
         const acc = !!w.accepted;
         // No unique ID -> not in the entity registry -> no labels -> set_policy/set_accepted can't work (#3).
@@ -503,7 +527,7 @@ class RecorderThrottleCard extends HTMLElement {
         </div>`;
       })
       .join("");
-    this._wrap.innerHTML = `${toolbar}${bulk}<div class="rt-rows"${rowsStyle}>${rowsHtml}</div>${pager}`;
+    this._wrap.innerHTML = `${notice}${toolbar}${bulk}<div class="rt-rows"${rowsStyle}>${rowsHtml}</div>${pager}`;
     const firstRow = this._wrap.querySelector(".rt-row");
     if (firstRow) this._rowH = firstRow.offsetHeight;
   }
@@ -526,5 +550,5 @@ if (!customElements.get("recorder-throttle-card")) {
     description: "Throttle per-entity recorder DB writes (EN/DE)",
     documentationURL: "https://github.com/pos-ei-don/ha-recorder-throttle",
   });
-  console.info("%c recorder-throttle-card %c v1.2 ", "background:#1f6feb;color:#fff", "");
+  console.info("%c recorder-throttle-card %c v1.3 ", "background:#1f6feb;color:#fff", "");
 }

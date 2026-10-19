@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3
+- Card: much less work on large installations (#2, thanks to @cerebrate for the analysis). Home Assistant hands the card a new state object on every state change anywhere; the card now re-renders only when something it shows has changed — the entity registry (labels), the language, or an entity on the visible page. With 800 throttled entities, 1000 unrelated state changes went from about 33 s to about 1 s of card work.
+- Card: clicks are no longer lost. The card used to replace its buttons whenever a state changed, which could happen between pressing and releasing the mouse; it now waits until the click has been handled.
+- Card: the heavy-writer query (`top_writers`) only runs while the card is actually visible — browser tab in the foreground and card on screen. When it becomes visible again after more than two minutes, it refreshes once. This saves recorder database reads for every dashboard left open in the background.
+- Card: after throttling from the *Unthrottled* tab, a short notice confirms it ("30 entities set to 1m → now in the Throttled tab"). The list refills with the next heavy writers, which previously made it look as if nothing had happened.
+- Card: the *Unthrottled* tab no longer highlights "Full" (everything there is unthrottled by definition, so it read like a selection) and explains in one line what the list shows.
+
 ## 1.2
 - Card: entities without a unique ID (not in the entity registry, e.g. many YAML-defined entities) are marked "not throttleable" in the *Unthrottled* list instead of offering policy/accept buttons that could never work, and the "All to …" bulk action skips them (#3).
 - Card: Throttled/Accepted tabs get a live sort toggle (entity ID or friendly name, shared between the two tabs); the initial default can be set via the new `sort` option.
