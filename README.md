@@ -55,8 +55,10 @@ The card **ships with the integration and loads automatically** — no manual da
 ```yaml
 type: custom:recorder-throttle-card
 title: Recorder Throttle
-hours: 1     # window for the live rate
-limit: 30    # max rows in the "Unthrottled" tab
+hours: 1          # window for the live rate
+limit: 30         # max rows fetched for the "Unthrottled" tab
+page_size: 50     # rows per page, all tabs
+sort: entity_id   # or friendly_name — initial sort for the Throttled/Accepted tabs
 ```
 
 The card is localized: it shows German when Home Assistant's language is German, English otherwise.
@@ -67,6 +69,7 @@ The card is localized: it shows German when Home Assistant's language is German,
 - In the card, pick a level per entity (**Full · 1m · 5m · 10m · Off**) — applies instantly (sets the matching `rec-*` label).
 - **✓ acc.** marks a heavy writer as reviewed (label `rec-accepted`) so it stops being reported.
 - Click an entity name for the more-info dialog.
+- Throttled/Accepted tabs: toggle the sort order (Entity ID / Friendly name) and page through results with the pager at the bottom — handy on installations with large numbers of entities.
 - Without the card: set the label directly on the entity (Settings → entity → Labels).
 
 ## Settings (Devices & Services → Configure)

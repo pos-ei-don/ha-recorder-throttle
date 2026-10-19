@@ -5,7 +5,11 @@
  *   Throttled   — all entities with a rec-* policy (1/5/10min/off), from labels
  *   Accepted    — all entities with rec-accepted
  * Each row: name (click = more-info) · rate · statistics badge · policy switch · accept toggle.
- * Config:  type: custom:recorder-throttle-card  | title | hours:1 | limit:30
+ * Throttled/Accepted also get a live sort toggle (entity ID / friendly name) and all three
+ * tabs are paginated (page_size, default 50) — Unthrottled keeps its rate-first order.
+ * Throttled also gets an All/Unaccepted filter, so newly-throttled entities are easy to
+ * find and accept without paging through everything already reviewed.
+ * Config:  type: custom:recorder-throttle-card  | title | hours:1 | limit:30 | page_size:50 | sort:"entity_id"|"friendly_name"
  */
 const RT_POL = [
   { k: "full", c: "voll" },
@@ -27,6 +31,9 @@ const RT_I18N = {
     more_info: "More info",
     acc_btn: "✓ acc.", acc_title: "Mark as accepted heavy writer (stop reporting)",
     all_to: "All to", bulk_confirm: "Throttle all {n} listed entities to {p}?",
+    sort_label: "Sort:", sort_entity_id: "Entity ID", sort_friendly_name: "Friendly name",
+    page_prev: "Previous page", page_next: "Next page", page_info: "Page {page} of {pages}",
+    filter_label: "Show:", filter_all: "All", filter_unaccepted: "Unaccepted",
   },
   de: {
     header: "Recorder-Drosselung",
@@ -37,6 +44,9 @@ const RT_I18N = {
     more_info: "Mehr Infos",
     acc_btn: "✓ akz.", acc_title: "Als akzeptierten Vielschreiber markieren",
     all_to: "Alle auf", bulk_confirm: "Alle {n} angezeigten Entities auf {p} drosseln?",
+    sort_label: "Sortieren:", sort_entity_id: "Entity-ID", sort_friendly_name: "Anzeigename",
+    page_prev: "Vorherige Seite", page_next: "Nächste Seite", page_info: "Seite {page} von {pages}",
+    filter_label: "Anzeigen:", filter_all: "Alle", filter_unaccepted: "Nicht akzeptiert",
   },
 };
 
@@ -45,6 +55,11 @@ class RecorderThrottleCard extends HTMLElement {
     this._config = config;
     this._hours = config.hours || 1;
     this._limit = config.limit || 30;
+    this._pageSize = config.page_size || 50;
+    this._sort = config.sort === "friendly_name" ? "friendly_name" : "entity_id";
+    this._page = { unthrottled: 1, throttled: 1, accepted: 1 };
+    this._hideAccepted = false;
+    this._rowH = null;
     this._tab = "unthrottled";
     this._data = null;
     this._built = false;
@@ -140,18 +155,34 @@ class RecorderThrottleCard extends HTMLElement {
       if (!predicate(pol, acc)) continue;
       out.push({ entity_id: eid, name: this._name(eid), policy: pol, accepted: acc, per_min: rm[eid], has_statistics: this._stat(eid) });
     }
-    return out.sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+    return out;
   }
-  _throttledRows() {
-    return this._byLabel((pol) => pol !== "full");
+  _sortRows(rows) {
+    const key = this._sort === "friendly_name" ? "name" : "entity_id";
+    return rows.slice().sort((a, b) => String(a[key]).localeCompare(String(b[key])));
+  }
+  _throttledRows(ignoreFilter) {
+    const rows = this._byLabel((pol) => pol !== "full");
+    const filtered = this._hideAccepted && !ignoreFilter ? rows.filter((w) => !w.accepted) : rows;
+    return this._sortRows(filtered);
   }
   _acceptedRows() {
-    return this._byLabel((pol, acc) => acc);
+    return this._sortRows(this._byLabel((pol, acc) => acc));
   }
   _rowsFor(tab) {
     if (tab === "throttled") return this._throttledRows();
     if (tab === "accepted") return this._acceptedRows();
     return this._unthrottledRows();
+  }
+  _paginate(rows, tabId) {
+    const size = this._pageSize;
+    const pages = Math.max(1, Math.ceil(rows.length / size));
+    let page = this._page[tabId] || 1;
+    if (page > pages) page = pages;
+    if (page < 1) page = 1;
+    this._page[tabId] = page;
+    const start = (page - 1) * size;
+    return { rows: rows.slice(start, start + size), page, pages };
   }
 
   _build() {
@@ -184,6 +215,12 @@ class RecorderThrottleCard extends HTMLElement {
       .rt-bulk{display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--divider-color,#2c333b);margin-bottom:4px;font-size:13px;color:var(--secondary-text-color,#9aa7b4)}
       .rt-bulk button{appearance:none;border:1px solid var(--divider-color,#2c333b);background:transparent;color:var(--primary-text-color);border-radius:8px;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer}
       .rt-bulk button.m1:hover{border-color:#1a7f37;color:#3fb950}.rt-bulk button.m5:hover{border-color:#9e6a03;color:#d29922}
+      .rt-sort{display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--divider-color,#2c333b);margin-bottom:4px;font-size:13px;color:var(--secondary-text-color,#9aa7b4)}
+      .rt-sort .rt-seg button.on{background:var(--primary-color,#1f6feb)}
+      .rt-pager{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 0 2px}
+      .rt-pager button{appearance:none;border:1px solid var(--divider-color,#2c333b);background:transparent;color:var(--primary-text-color);border-radius:8px;padding:4px 10px;font:inherit;font-size:14px;cursor:pointer;line-height:1}
+      .rt-pager button:disabled{opacity:.35;cursor:default}
+      .rt-pager-info{font-size:12px;color:var(--secondary-text-color,#9aa7b4);min-width:70px;text-align:center}
     `;
     const tabs = document.createElement("div");
     tabs.className = "rt-tabs";
@@ -225,7 +262,54 @@ class RecorderThrottleCard extends HTMLElement {
       if (!window.confirm(msg)) return;
       this._hass.callService("recorder_throttle", "set_policy", { entity_id: ids, policy: el.dataset.k });
       setTimeout(() => this._fetch(), 1500);
+    } else if (el.dataset.act === "sort") {
+      if (el.dataset.k !== this._sort) {
+        this._sort = el.dataset.k;
+        this._page.throttled = 1;
+        this._page.accepted = 1;
+        this._render();
+      }
+    } else if (el.dataset.act === "filter") {
+      const wantHide = el.dataset.k === "unaccepted";
+      if (wantHide !== this._hideAccepted) {
+        this._hideAccepted = wantHide;
+        this._page.throttled = 1;
+        this._render();
+      }
+    } else if (el.dataset.act === "page") {
+      const cur = this._page[this._tab] || 1;
+      this._page[this._tab] = el.dataset.dir === "next" ? cur + 1 : Math.max(1, cur - 1);
+      this._render();
     }
+  }
+
+  _renderSortToggle() {
+    const modes = [
+      { k: "entity_id", label: this._t("sort_entity_id") },
+      { k: "friendly_name", label: this._t("sort_friendly_name") },
+    ];
+    const btns = modes
+      .map((m) => `<button data-act="sort" data-k="${m.k}" class="${m.k === this._sort ? "on" : ""}">${m.label}</button>`)
+      .join("");
+    return `<span>${this._t("sort_label")}</span><div class="rt-seg">${btns}</div>`;
+  }
+  _renderAcceptedFilter() {
+    const modes = [
+      { k: "all", label: this._t("filter_all") },
+      { k: "unaccepted", label: this._t("filter_unaccepted") },
+    ];
+    const cur = this._hideAccepted ? "unaccepted" : "all";
+    const btns = modes
+      .map((m) => `<button data-act="filter" data-k="${m.k}" class="${m.k === cur ? "on" : ""}">${m.label}</button>`)
+      .join("");
+    return `<span>${this._t("filter_label")}</span><div class="rt-seg">${btns}</div>`;
+  }
+  _renderPager(page, pages) {
+    return `<div class="rt-pager">
+      <button data-act="page" data-dir="prev" ${page <= 1 ? "disabled" : ""} title="${this._t("page_prev")}">‹</button>
+      <span class="rt-pager-info">${this._t("page_info").replace("{page}", page).replace("{pages}", pages)}</span>
+      <button data-act="page" data-dir="next" ${page >= pages ? "disabled" : ""} title="${this._t("page_next")}">›</button>
+    </div>`;
   }
 
   _render() {
@@ -235,20 +319,39 @@ class RecorderThrottleCard extends HTMLElement {
       throttled: this._throttledRows().length,
       accepted: this._acceptedRows().length,
     };
+    // When the Throttled filter is hiding accepted entities, show "shown/total" in the
+    // tab label instead of just the filtered count — otherwise it looks like entities
+    // went missing rather than just being filtered out of view.
+    const throttledLabel = this._hideAccepted ? `${counts.throttled}/${this._throttledRows(true).length}` : counts.throttled;
     this._tabsEl.innerHTML = RT_TAB_IDS.map(
-      (id) => `<button data-tab="${id}" class="${id === this._tab ? "on" : ""}">${this._t("tab_" + id)} (${counts[id]})</button>`
+      (id) => `<button data-tab="${id}" class="${id === this._tab ? "on" : ""}">${this._t("tab_" + id)} (${id === "throttled" ? throttledLabel : counts[id]})</button>`
     ).join("");
+
+    const toolbarParts = [];
+    if (this._tab !== "unthrottled") toolbarParts.push(this._renderSortToggle());
+    if (this._tab === "throttled") toolbarParts.push(this._renderAcceptedFilter());
+    const toolbar = toolbarParts.length ? `<div class="rt-sort">${toolbarParts.join("")}</div>` : "";
 
     const rows = this._rowsFor(this._tab);
     if (!rows.length) {
-      this._wrap.innerHTML = `<div class="rt-empty">${this._data === null && this._tab === "unthrottled" ? this._t("loading") : this._t("no_entries")}</div>`;
+      // Keep the toolbar visible even with zero rows: with the Throttled tab's filter
+      // set to "Unaccepted", zero rows just means everything's been reviewed — losing
+      // the control here would trap the user unable to switch back to "All".
+      this._wrap.innerHTML = `${toolbar}<div class="rt-empty">${this._data === null && this._tab === "unthrottled" ? this._t("loading") : this._t("no_entries")}</div>`;
       return;
     }
+    const { rows: pageRows, page, pages } = this._paginate(rows, this._tab);
+    const pager = pages > 1 ? this._renderPager(page, pages) : "";
     const bulk =
       this._tab === "unthrottled"
         ? `<div class="rt-bulk"><span>${this._t("all_to")}</span><button data-act="bulk" data-k="1min" class="m1">${this._t("pol_1min")}</button><button data-act="bulk" data-k="5min" class="m5">${this._t("pol_5min")}</button></div>`
         : "";
-    this._wrap.innerHTML = bulk + rows
+    // Reserve a full page's worth of height on the rows container (from a previously
+    // measured row) so a shorter last page doesn't shrink the card and trigger a
+    // Lovelace masonry reflow that jumps the card on screen (only matters once paging
+    // is actually in effect for this tab; a single-page tab is naturally stable).
+    const rowsStyle = pages > 1 && this._rowH ? ` style="min-height:${this._rowH * this._pageSize}px"` : "";
+    const rowsHtml = pageRows
       .map((w) => {
         const eid = w.entity_id;
         const pol = w.policy || "full";
@@ -269,13 +372,17 @@ class RecorderThrottleCard extends HTMLElement {
         </div>`;
       })
       .join("");
+    this._wrap.innerHTML = `${toolbar}${bulk}<div class="rt-rows"${rowsStyle}>${rowsHtml}</div>${pager}`;
+    const firstRow = this._wrap.querySelector(".rt-row");
+    if (firstRow) this._rowH = firstRow.offsetHeight;
   }
 
   getCardSize() {
-    return 2 + Math.ceil((this._rowsFor(this._tab).length || 6) * 0.6);
+    const shown = Math.min(this._rowsFor(this._tab).length, this._pageSize) || 6;
+    return 2 + Math.ceil(shown * 0.6);
   }
   static getStubConfig() {
-    return { hours: 1, limit: 30 };
+    return { hours: 1, limit: 30, page_size: 50, sort: "entity_id" };
   }
 }
 

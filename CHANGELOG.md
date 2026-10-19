@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+- Card: Throttled/Accepted tabs get a live sort toggle (entity ID or friendly name, shared between the two tabs); the initial default can be set via the new `sort` option.
+- Card: all three tabs are now paginated (new `page_size` option, default 50) instead of rendering as one long list — makes the card usable on installations with large numbers of entities. The card's height stays constant while paging, so a shorter last page doesn't shift it around the dashboard.
+- Card: the Throttled tab gets a live All/Unaccepted filter, so an entity you've just throttled is easy to find and accept without paging through everything already reviewed. The tab's count badge shows "shown/total" (e.g. `Throttled (88/767)`) while the filter is narrowing the view.
+
 ## 1.1
 - Throttle intervals are now measured on the time a state change happened, not on when the recorder got round to it. Previously, when the recorder worked off a backlog (right after a restart, or with a slow database), a throttled entity could keep a single value for the whole backlog; now it keeps one per interval, as configured.
 - The throttle hook is installed earlier during setup, so fewer state changes slip through unthrottled at startup.
