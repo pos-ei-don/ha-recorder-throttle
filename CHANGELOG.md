@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1
+- Manifest: added the integration category (`computers_network`), so the Home Assistant Marketplace (2026.11+) can list it under a category. No functional change.
+- CI: `actions/checkout` v4 → v7 (Node.js 24; v4 still ran on the deprecated Node.js 20).
+
 ## 1.3
 - Card: much less work on large installations (#2, thanks to @cerebrate for the analysis). Home Assistant hands the card a new state object on every state change anywhere; the card now re-renders only when something it shows has changed — the entity registry (labels), the language, or an entity on the visible page. With 800 throttled entities, 1000 unrelated state changes went from about 33 s to about 1 s of card work.
 - Card: clicks are no longer lost. The card used to replace its buttons whenever a state changed, which could happen between pressing and releasing the mouse; it now waits until the click has been handled.
